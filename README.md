@@ -1,2 +1,2 @@
 # IoT-Parking2
-Naieve Intelligent Parking System Solution
+Naive Intelligent Parking System Solution
