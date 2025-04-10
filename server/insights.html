@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Insights - Parking Space Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="sidebar">
+    <div class="logo">
+        <svg width="180" height="40" viewBox="0 0 180 40">
+            <path d="M12,15 L30,15 L24,27 L12,27 Z" fill="#4270F4" />
+            <text x="38" y="27" fill="#262A39" font-size="20" font-weight="bold">ParkSafe</text>
+        </svg>
+    </div>
+    <div class="nav-menu">
+        <a href="main_page.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="accounts.html" class="nav-item"><i class="fas fa-user-circle"></i><span>Account</span></a>
+        <a href="parking_spaces.html" class="nav-item"><i class="fas fa-parking"></i><span>Parking Spaces</span></a>
+        <a href="preferences.html" class="nav-item"><i class="fas fa-sliders-h"></i><span>Preferences</span></a>
+        <a href="insights.html" class="nav-item active"><i class="fas fa-chart-line"></i><span>Insights</span></a>
+    </div>
+    <div class="premium-box">
+        <h3>Click to refresh statistics</h3>
+        <button class="premium-btn">Refresh</button>
+    </div>
+</div>
+<div class="main-content">
+    <h1>Insights</h1>
+    <canvas id="parking-chart" class="transfer-card"></canvas>
+    <div id="parking-table" class="transaction-card">
+        <h3 class="section-title">Parking Data</h3>
+        <!-- Table content -->
+    </div>
+</div>
+<script src="insights.js"></script>
+</body>
+</html>
