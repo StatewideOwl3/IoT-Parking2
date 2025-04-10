@@ -1,0 +1,110 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Arial', sans-serif;
+}
+
+body {
+    background-color: #f0f2f5;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px 0;
+    background-color: #2c3e50;
+    color: white;
+    border-radius: 10px;
+}
+
+header h1 {
+    margin-bottom: 10px;
+}
+
+.dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.card h2 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.status-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: space-around;
+}
+
+.status-item {
+    text-align: center;
+    padding: 15px;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    min-width: 120px;
+}
+
+.status-label {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.status-indicator {
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.available {
+    background-color: #28a745;
+    color: white;
+}
+
+.occupied {
+    background-color: #dc3545;
+    color: white;
+}
+
+.chart-container {
+    height: 300px;
+}
+
+.info-item {
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+
+.info-label {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+@media (max-width: 768px) {
+    .dashboard {
+        grid-template-columns: 1fr;
+    }
+}
