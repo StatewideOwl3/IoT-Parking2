@@ -7,22 +7,30 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
 </head>
 <body>
 <!-- Sidebar -->
 <div class="sidebar">
     <div class="logo">
         <svg width="180" height="40" viewBox="0 0 180 40">
-            <path d="M12,15 L30,15 L24,27 L12,27 Z" fill="#4270F4" />
-            <text x="38" y="27" fill="#262A39" font-size="20" font-weight="bold">ParkSafe</text>
+            <!-- Car body -->
+            <path d="M10,25 L14,17 L30,17 L34,25 L34,28 L10,28 Z" fill="#4270F4"/>
+            <!-- Front wheel -->
+            <circle cx="15" cy="28" r="3" fill="#262A39"/>
+            <!-- Back wheel -->
+            <circle cx="29" cy="28" r="3" fill="#262A39"/>
+            <!-- Windshield -->
+            <path d="M16,17 L19,13 L25,13 L28,17" fill="none" stroke="#262A39" stroke-width="1.5"/>
+            <text x="42" y="27" fill="#262A39" font-size="20" font-weight="bold">ParkSafe</text>
         </svg>
     </div>
     <div class="nav-menu">
         <a href="main_page.html" class="nav-item active"><i class="fas fa-home"></i><span>Home</span></a>
-        <a href="accounts.html" class="nav-item"><i class="fas fa-user-circle"></i><span>Account</span></a>
         <a href="parking_spaces.html" class="nav-item"><i class="fas fa-parking"></i><span>Parking Spaces</span></a>
-        <a href="preferences.html" class="nav-item"><i class="fas fa-sliders-h"></i><span>Preferences</span></a>
         <a href="insights.html" class="nav-item"><i class="fas fa-chart-line"></i><span>Insights</span></a>
+        <a href="preferences.html" class="nav-item"><i class="fas fa-cog"></i><span>Settings</span></a>
     </div>
     <div class="premium-box">
         <h3>Click to refresh statistics</h3>
@@ -46,7 +54,7 @@
                 <img src="profile_pic.jpeg" alt="Admin" class="profile-pic" />
             </div>
             <div class="search-bar">
-                <form id="search-form" class="search2" method="get" action="main_page.html">
+                <form id="search-form" class="search2" method="get">
                     <input type="search" id="query" name="q" placeholder="Search">
                     <button type="submit"><i class="fas fa-search"></i></button>
                 </form>
@@ -61,18 +69,18 @@
             <div class="transfer-cards">
                 <div class="transfer-card">
                     <div class="card-icon"><i class="fas fa-parking"></i></div>
-                    <p class="card-title">Total Cars Parked</p>
-                    <h2 class="card-amount">1,875</h2>
+                    <p class="card-title" data-searchable="stat">Total Cars Today</p>
+                    <h2 class="card-amount" id="totalCarsParked" data-searchable="stat">--</h2>
                 </div>
                 <div class="transfer-card">
-                    <div class="card-icon"><i class="fas fa-circle"></i></div>
-                    <p class="card-title">Currently Parked</p>
-                    <h2 class="card-amount">263</h2>
+                    <div class="card-icon"><i class="fas fa-check-circle"></i></div>
+                    <p class="card-title" data-searchable="stat">Free Spaces</p>
+                    <h2 class="card-amount positive" id="freeSpaces" data-searchable="stat">--</h2>
                 </div>
                 <div class="transfer-card">
-                    <div class="card-icon"><i class="far fa-circle"></i></div>
-                    <p class="card-title">Free Spots</p>
-                    <h2 class="card-amount">394</h2>
+                    <div class="card-icon"><i class="fas fa-ban"></i></div>
+                    <p class="card-title" data-searchable="stat">Occupied Spaces</p>
+                    <h2 class="card-amount negative" id="occupiedSpaces" data-searchable="stat">--</h2>
                 </div>
             </div>
             <!-- Promo Card -->
@@ -108,72 +116,47 @@
             <div class="transaction-section">
                 <div class="transaction-card">
                     <h3 class="section-title">Recent Traffic</h3>
-                    <div class="transaction-item">
-                        <div class="transaction-icon"><i class="fas fa-car-alt"></i></div>
-                        <div class="transaction-content">
-                            <div class="transaction-title">MA 1082</div>
-                            <div class="transaction-time"><i class="far fa-clock"></i> Today, 14:45</div>
-                        </div>
-                        <div class="transaction-amount negative">OUT</div>
-                    </div>
-                    <div class="transaction-item">
-                        <div class="transaction-icon"><i class="fas fa-car-alt"></i></div>
-                        <div class="transaction-content">
-                            <div class="transaction-title">TL 1095</div>
-                            <div class="transaction-time"><i class="far fa-clock"></i> Yesterday, 16:08</div>
-                        </div>
-                        <div class="transaction-amount negative">OUT</div>
+                    <div id="recentTraffic">
+                        <!-- Dynamic content will be inserted here by JavaScript -->
                     </div>
                 </div>
                 <div class="transaction-card">
                     <h3 class="section-title">Daily Traffic Change</h3>
-                    <!-- Dynamic content will be inserted here -->
+                    <canvas id="trafficChart"></canvas>
                 </div>
             </div>
         </div>
         <!-- Dashboard Sidebar -->
         <div class="dashboard-sidebar">
             <div class="savings-card">
-                <h3 class="savings-title">Monthly Parking</h3>
-                <div class="savings-amount">467.5</div>
+                <h3 class="savings-title">Parkings</h3>
+                <div class="savings-amount" id="totalParkings">--</div>
                 <div class="time-filter">
-                    <button class="time-option">Daily</button>
-                    <button class="time-option">Weekly</button>
-                    <button class="time-option active">Monthly</button>
-                    <button class="time-option">Annual</button>
+                    <button class="time-option active" data-searchable="time">Last Hour</button>
+                    <button class="time-option" data-searchable="time">Today</button>
+                    <button class="time-option" data-searchable="time">This Week</button>
                 </div>
                 <div class="chart-container">
                     <canvas id="parking-chart"></canvas>
                 </div>
-                <div class="timeline">
-                    <div class="month">Oct</div>
-                    <div class="month">Nov</div>
-                    <div class="month active">Dec</div>
-                    <div class="month">Jan</div>
-                    <div class="month">Feb</div>
-                    <div class="month">Mar</div>
+                <div class="timeline" id="timeline">
+                    <!-- Timeline will be populated by JavaScript -->
                 </div>
             </div>
             <div class="plan-card">
                 <div class="plan-info">
                     <div class="plan-title">Current Capacity</div>
-                    <div class="plan-status">On Track</div>
+                    <div class="plan-status" id="capacityStatus">--</div>
                 </div>
                 <div class="plan-progress">
-                    <div class="plan-percentage">68%</div>
+                    <div class="plan-percentage" id="capacityPercentage">--%</div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-<!-- Modal -->
-<div id="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
-    <div class="transfer-card" style="margin:10% auto; width:50%; max-height:80%; overflow:auto;">
-        <h2 id="modal-title"></h2>
-        <div id="modal-content"></div>
-        <button onclick="document.getElementById('modal').style.display='none'" class="promo-btn">Close</button>
-    </div>
-</div>
+
 <script src="main_page.js"></script>
+<script src="search.js"></script>
 </body>
 </html>

@@ -7,6 +7,150 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <style>
+        /* Layout */
+        .sidebar { width: 220px; }
+        .main-content { margin-left: 220px; padding: 20px 30px; }
+        .dashboard-container { 
+            display: grid; 
+            gap: 24px; 
+            max-width: 1400px; 
+            margin: 0 auto;
+        }
+
+        /* Time Filter */
+        .time-filter-card { background: #fff; border-radius: 15px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .time-filter { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        .time-filter button { 
+            padding: 8px 16px; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            transition: all 0.3s;
+            background: #fff;
+        }
+        .time-filter button:hover { background: #f8f9fa; }
+        .time-filter button.active { 
+            background: #4270F4; 
+            color: white; 
+            border-color: #4270F4;
+        }
+
+        /* Stats Cards */
+        .stats-cards { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 20px; 
+        }
+        .stat-card { 
+            background: #fff; 
+            border-radius: 15px; 
+            padding: 20px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #4270F4;
+        }
+        .stat-card h4 { 
+            margin: 0 0 15px 0; 
+            color: #666; 
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-card div { 
+            font-size: 28px; 
+            font-weight: bold; 
+            color: #4270F4;
+            margin-bottom: 10px;
+        }
+        .stat-icon {
+            font-size: 32px;
+            color: rgba(66, 112, 244, 0.1);
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+        }
+
+        /* Chart */
+        .transaction-card { 
+            background: #fff; 
+            border-radius: 15px; 
+            padding: 24px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section-title { 
+            margin: 0 0 20px 0; 
+            color: #333; 
+            font-size: 18px;
+            font-weight: 600;
+        }
+        #occupancyChart { 
+            height: 350px !important; 
+            width: 100% !important;
+            margin: 10px 0;
+        }
+        
+        /* Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        /* Activity Table */
+        .activity-table-container { 
+            height: 400px; 
+            overflow-y: auto; 
+            margin-top: 10px;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+        }
+        .insights-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+        }
+        .insights-table th, 
+        .insights-table td { 
+            padding: 12px; 
+            text-align: left; 
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+        .insights-table th { 
+            background-color: #f8f9fa; 
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .insights-table tr:hover { background-color: #f5f5f5; }
+        .insights-table td:nth-child(3) { color: #4270F4; }
+        .insights-table td:last-child { color: #666; }
+
+        /* Responsive Layout */
+        @media (max-width: 1200px) {
+            .stats-cards { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .stats-cards { grid-template-columns: 1fr; }
+            .main-content { margin-left: 0; }
+        }
+    </style>
 </head>
 <body>
 <div class="sidebar">
@@ -18,10 +162,9 @@
     </div>
     <div class="nav-menu">
         <a href="main_page.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
-        <a href="accounts.html" class="nav-item"><i class="fas fa-user-circle"></i><span>Account</span></a>
         <a href="parking_spaces.html" class="nav-item"><i class="fas fa-parking"></i><span>Parking Spaces</span></a>
-        <a href="preferences.html" class="nav-item"><i class="fas fa-sliders-h"></i><span>Preferences</span></a>
         <a href="insights.html" class="nav-item active"><i class="fas fa-chart-line"></i><span>Insights</span></a>
+        <a href="preferences.html" class="nav-item"><i class="fas fa-cog"></i><span>Settings</span></a>
     </div>
     <div class="premium-box">
         <h3>Click to refresh statistics</h3>
@@ -29,13 +172,90 @@
     </div>
 </div>
 <div class="main-content">
-    <h1>Insights</h1>
-    <canvas id="parking-chart" class="transfer-card"></canvas>
-    <div id="parking-table" class="transaction-card">
-        <h3 class="section-title">Parking Data</h3>
-        <!-- Table content -->
+    <div class="header">
+        <div class="welcome-section">
+            <p class="greeting">Good day, Admin,</p>
+            <h1 class="welcome-title">Parking Insights</h1>
+        </div>
+        <div class="header-right">
+            <div class="notification-bell">
+                <i class="fas fa-bell"></i>
+                <div class="notification-indicator"></div>
+            </div>
+            <div class="user-profile">
+                <img src="profile_pic.jpeg" alt="Admin" class="profile-pic" />
+            </div>
+            <div class="search-bar">
+                <form id="search-form" class="search2" method="get">
+                    <input type="search" id="query" name="q" placeholder="Search">
+                    <button type="submit"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        <!-- Time Range Selection -->
+        <div class="time-filter-card">
+            <div class="time-filter">
+                <button class="time-option active" data-range="hour">Last Hour</button>
+                <button class="time-option" data-range="day">Today</button>
+                <button class="time-option" data-range="week">This Week</button>
+                <button class="time-option" data-range="month">This Month</button>
+                <button class="time-option" data-range="year">This Year</button>
+                <button class="time-option" data-range="lifetime">Lifetime</button>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-cards">
+            <div class="stat-card">
+                <h4>Total Cars Parked</h4>
+                <div id="totalCarsParked">--</div>
+                <i class="fas fa-car stat-icon"></i>
+            </div>
+            <div class="stat-card">
+                <h4>Average Occupancy Rate</h4>
+                <div id="avgOccupancyRate">--%</div>
+                <i class="fas fa-chart-line stat-icon"></i>
+            </div>
+            <div class="stat-card">
+                <h4>Peak Hours</h4>
+                <div id="peakHours">--</div>
+                <i class="fas fa-clock stat-icon"></i>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Occupancy Rate Chart -->
+            <div class="transaction-card">
+                <h3 class="section-title" data-searchable="chart">Occupancy Rate Over Time</h3>
+                <canvas id="occupancyChart" data-searchable="chart"></canvas>
+            </div>
+
+            <!-- Recent Activity Table -->
+            <div class="transaction-card">
+                <h3 class="section-title" data-searchable="activity">Recent Activity</h3>
+                <div class="activity-table-container">
+                    <table class="insights-table" id="activityTable">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Spot</th>
+                                <th>Event</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Activity data will be inserted here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 <script src="insights.js"></script>
+<script src="search.js"></script>
 </body>
 </html>

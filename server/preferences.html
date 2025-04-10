@@ -18,10 +18,9 @@
     </div>
     <div class="nav-menu">
         <a href="main_page.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
-        <a href="accounts.html" class="nav-item"><i class="fas fa-user-circle"></i><span>Account</span></a>
         <a href="parking_spaces.html" class="nav-item"><i class="fas fa-parking"></i><span>Parking Spaces</span></a>
-        <a href="preferences.html" class="nav-item active"><i class="fas fa-sliders-h"></i><span>Preferences</span></a>
         <a href="insights.html" class="nav-item"><i class="fas fa-chart-line"></i><span>Insights</span></a>
+        <a href="preferences.html" class="nav-item active"><i class="fas fa-cog"></i><span>Settings</span></a>
     </div>
     <div class="premium-box">
         <h3>Click to refresh statistics</h3>
@@ -29,14 +28,75 @@
     </div>
 </div>
 <div class="main-content">
-    <h1>Preferences</h1>
-    <form id="preferences-form" class="transfer-card">
-        <label for="total-spots">Total Parking Spots:</label>
-        <input type="number" id="total-spots" min="1" required />
-        <label for="sections">Sections (comma-separated):</label>
-        <input type="text" id="sections" placeholder="e.g., Section A, Section B" />
-        <button type="submit" class="promo-btn">Save</button>
-    </form>
+    <!-- Header -->
+    <div class="header">
+        <div class="welcome-section">
+            <p class="greeting">Settings</p>
+            <h1 class="welcome-title">Configure Your Parking System</h1>
+        </div>
+        <div class="header-right">
+            <div class="notification-bell">
+                <i class="fas fa-bell"></i>
+                <div class="notification-indicator"></div>
+            </div>
+            <div class="user-profile">
+                <img src="profile_pic.jpeg" alt="Admin" class="profile-pic" />
+            </div>
+            <div class="search-bar">
+                <form id="search-form" class="search2" method="get">
+                    <input type="search" id="query" name="q" placeholder="Search">
+                    <button type="submit"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="settings-container">
+        <!-- Parking Lots Configuration -->
+        <div class="settings-section transfer-card">
+            <h2>Parking Lots Configuration</h2>
+            <form id="parking-lots-form">
+                <div class="form-group">
+                    <label for="lot-name">Lot Name:</label>
+                    <input type="text" id="lot-name" required placeholder="e.g., Main Campus" />
+                </div>
+                <div class="form-group">
+                    <label for="total-spots">Number of Spots:</label>
+                    <input type="number" id="total-spots" min="1" required />
+                </div>
+                <button type="submit" class="promo-btn">Add Lot</button>
+            </form>
+        </div>
+
+        <!-- Existing Parking Lots -->
+        <div class="settings-section transfer-card">
+            <h2>Existing Parking Lots</h2>
+            <div id="parking-lots-list">
+                <!-- Dynamically populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Sections Configuration -->
+        <div class="settings-section transfer-card">
+            <h2>Section Management</h2>
+            <form id="sections-form">
+                <div class="form-group">
+                    <label for="lot-select">Select Parking Lot:</label>
+                    <select id="lot-select" required>
+                        <!-- Dynamically populated by JavaScript -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="section-name">Section Name:</label>
+                    <input type="text" id="section-name" required placeholder="e.g., Section A" />
+                </div>
+                <div class="form-group">
+                    <label for="section-spots">Number of Spots in Section:</label>
+                    <input type="number" id="section-spots" min="1" required />
+                </div>
+                <button type="submit" class="promo-btn">Add Section</button>
+            </form>
+        </div>
+    </div>
 </div>
 <script src="preferences.js"></script>
 </body>

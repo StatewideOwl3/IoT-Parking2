@@ -172,6 +172,7 @@ body {
     font-weight: 700;
     background: linear-gradient(90deg, var(--text-primary), var(--primary-color));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 .header-right {
@@ -511,6 +512,7 @@ body {
     margin-bottom: 20px;
     background: linear-gradient(90deg, var(--text-primary), var(--primary-color));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 .promo-desc {
@@ -821,6 +823,18 @@ body {
     font-weight: 700;
     text-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
+/* Search highlight effect */
+@keyframes highlight {
+    0% { background-color: transparent; }
+    30% { background-color: #ffd700; }
+    70% { background-color: #ffd700; }
+    100% { background-color: transparent; }
+}
+
+.search-highlight {
+    animation: highlight 2s ease-in-out;
+}
+
 /* Responsive Design */
 @media (max-width: 1400px) {
     .dashboard-container {
