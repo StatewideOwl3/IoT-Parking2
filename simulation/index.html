@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Lot Simulation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <svg width="180" height="40" viewBox="0 0 180 40">
+                <path d="M12,15 L30,15 L24,27 L12,27 Z" fill="#4270F4" />
+                <text x="38" y="27" fill="#262A39" font-size="20" font-weight="bold">ParkSafe</text>
+            </svg>
+        </div>
+        <div class="nav-menu">
+            <a href="index.html" class="nav-item active"><i class="fas fa-car"></i><span>Simulation</span></a>
+            <a href="charts.html" class="nav-item"><i class="fas fa-chart-line"></i><span>Charts</span></a>
+            <a href="#" class="nav-item"><i class="fas fa-cog"></i><span>Settings</span></a>
+        </div>
+        <div class="premium-box">
+            <h3>Simulation Controls</h3>
+            <button id="start-simulation" class="premium-btn">Start Simulation</button>
+            <button id="stop-simulation" class="premium-btn" disabled>Stop Simulation</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="welcome-section">
+                <p class="greeting">Welcome to</p>
+                <h1 class="welcome-title">ParkSafe Mall Simulation</h1>
+            </div>
+            <div class="top-nav">
+                <div class="notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">0</span>
+                </div>
+                <div class="profile">
+                    <img src="https://randomuser.me/api/portraits/men/44.jpg" alt="Profile" />
+                </div>
+            </div>
+        </div>
+
+        <div class="content-body">
+            <div class="simulation-controls">
+                <div class="control-group">
+                    <label for="simulation-speed">Simulation Speed:</label>
+                    <input type="range" id="simulation-speed" min="1" max="10" value="5">
+                    <span id="speed-value">5</span>
+                </div>
+                <div class="control-group">
+                    <label for="occupancy-rate">Target Occupancy Rate (%):</label>
+                    <input type="range" id="occupancy-rate" min="0" max="100" value="50">
+                    <span id="occupancy-value">50%</span>
+                </div>
+            </div>
+
+            <div class="stats-cards">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-car"></i></div>
+                    <div class="stat-info">
+                        <h3>Occupied Spots</h3>
+                        <p id="occupied-count">0/12</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-info">
+                        <h3>Last Update</h3>
+                        <p id="last-update">--</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-wifi"></i></div>
+                    <div class="stat-info">
+                        <h3>API Status</h3>
+                        <p id="api-status">Ready</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="parking-layout">
+                <h2 class="section-title">Mall Parking Layout</h2>
+                <div class="entrance-exit">
+                    <div class="entrance">Entrance</div>
+                    <div class="exit">Exit</div>
+                </div>
+                <div class="parking-area">
+                    <div class="sector-a">
+                        <h3>Sector A</h3>
+                        <div class="row">
+                            <div id="spot-1-1" class="parking-spot" data-channel="1" data-field="1">Spot 1</div>
+                            <div id="spot-1-2" class="parking-spot" data-channel="1" data-field="2">Spot 2</div>
+                            <div id="spot-2-1" class="parking-spot" data-channel="2" data-field="1">Spot 3</div>
+                            <div id="spot-2-2" class="parking-spot" data-channel="2" data-field="2">Spot 4</div>
+                        </div>
+                        <div class="row">
+                            <div id="spot-3-1" class="parking-spot" data-channel="3" data-field="1">Spot 5</div>
+                            <div id="spot-3-2" class="parking-spot" data-channel="3" data-field="2">Spot 6</div>
+                            <div id="spot-4-1" class="parking-spot" data-channel="4" data-field="1">Spot 7</div>
+                            <div id="spot-4-2" class="parking-spot" data-channel="4" data-field="2">Spot 8</div>
+                        </div>
+                    </div>
+                    <div class="sector-b">
+                        <h3>Sector B</h3>
+                        <div class="row">
+                            <div id="spot-5-1" class="parking-spot" data-channel="5" data-field="1">Spot 9</div>
+                            <div id="spot-5-2" class="parking-spot" data-channel="5" data-field="2">Spot 10</div>
+                            <div id="spot-6-1" class="parking-spot" data-channel="6" data-field="1">Spot 11</div>
+                            <div id="spot-6-2" class="parking-spot" data-channel="6" data-field="2">Spot 12</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="activity-log">
+                <h2 class="section-title">Activity Log</h2>
+                <div id="log-container" class="log-container">
+                    <div class="log-entry">
+                        <span class="log-time">22:39:34</span>
+                        <span class="log-message">Simulation ready to start</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

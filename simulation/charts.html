@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Charts - Simulation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .charts-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-card {
+            background-color: var(--white);
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            padding: 15px;
+            flex: 1 1 calc(50% - 20px);
+            min-width: 450px;
+        }
+        
+        .chart-card h3 {
+            margin-bottom: 15px;
+            color: var(--dark);
+            border-bottom: 1px solid var(--gray);
+            padding-bottom: 8px;
+        }
+        
+        .chart-iframe {
+            width: 100%;
+            height: 260px;
+            border: none;
+        }
+        
+        .refresh-all {
+            background-color: var(--primary);
+            color: var(--white);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        .refresh-all:hover {
+            background-color: var(--primary-light);
+        }
+
+        @media (max-width: 768px) {
+            .chart-card {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <svg width="180" height="40" viewBox="0 0 180 40">
+                <path d="M12,15 L30,15 L24,27 L12,27 Z" fill="#4270F4" />
+                <text x="38" y="27" fill="#262A39" font-size="20" font-weight="bold">ParkSafe</text>
+            </svg>
+        </div>
+        <div class="nav-menu">
+            <a href="index.html" class="nav-item"><i class="fas fa-car"></i><span>Simulation</span></a>
+            <a href="charts.html" class="nav-item active"><i class="fas fa-chart-line"></i><span>Charts</span></a>
+            <a href="#" class="nav-item"><i class="fas fa-cog"></i><span>Settings</span></a>
+        </div>
+        <div class="premium-box">
+            <h3>Chart Controls</h3>
+            <button id="refresh-charts" class="premium-btn">Refresh All Charts</button>
+            <button id="auto-refresh" class="premium-btn">Auto Refresh: OFF</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="welcome-section">
+                <p class="greeting">Data Visualization</p>
+                <h1 class="welcome-title">Parking Spot Charts</h1>
+            </div>
+            <div class="top-nav">
+                <div class="notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">0</span>
+                </div>
+                <div class="profile">
+                    <img src="https://randomuser.me/api/portraits/men/44.jpg" alt="Profile" />
+                </div>
+            </div>
+        </div>
+
+        <div class="content-body">
+            <button id="refresh-all-charts" class="refresh-all"><i class="fas fa-sync-alt"></i> Refresh All Charts</button>
+            
+            <h2 class="section-title">Sector A - Row 1</h2>
+            <div class="charts-container">
+                <!-- Channel 1: Spots 1 and 2 -->
+                <div class="chart-card">
+                    <h3>Spot 1 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-1-1"></iframe>
+                </div>
+                <div class="chart-card">
+                    <h3>Spot 2 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-1-2"></iframe>
+                </div>
+                
+                <!-- Channel 2: Spots 3 and 4 -->
+                <div class="chart-card">
+                    <h3>Spot 3 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-2-1"></iframe>
+                </div>
+                <div class="chart-card">
+                    <h3>Spot 4 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-2-2"></iframe>
+                </div>
+            </div>
+            
+            <h2 class="section-title">Sector A - Row 2</h2>
+            <div class="charts-container">
+                <!-- Channel 3: Spots 5 and 6 -->
+                <div class="chart-card">
+                    <h3>Spot 5 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-3-1"></iframe>
+                </div>
+                <div class="chart-card">
+                    <h3>Spot 6 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-3-2"></iframe>
+                </div>
+                
+                <!-- Channel 4: Spots 7 and 8 -->
+                <div class="chart-card">
+                    <h3>Spot 7 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-4-1"></iframe>
+                </div>
+                <div class="chart-card">
+                    <h3>Spot 8 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-4-2"></iframe>
+                </div>
+            </div>
+            
+            <h2 class="section-title">Sector B</h2>
+            <div class="charts-container">
+                <!-- Channel 5: Spots 9 and 10 -->
+                <div class="chart-card">
+                    <h3>Spot 9 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-5-1"></iframe>
+                </div>
+                <div class="chart-card">
+                    <h3>Spot 10 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-5-2"></iframe>
+                </div>
+                
+                <!-- Channel 6: Spots 11 and 12 -->
+                <div class="chart-card">
+                    <h3>Spot 11 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-6-1"></iframe>
+                </div>
+                <div class="chart-card">
+                    <h3>Spot 12 Occupancy (Past 24 hours)</h3>
+                    <iframe class="chart-iframe" id="chart-6-2"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const refreshAllBtn = document.getElementById('refresh-all-charts');
+            const refreshSidebarBtn = document.getElementById('refresh-charts');
+            const autoRefreshBtn = document.getElementById('auto-refresh');
+            let autoRefreshInterval;
+            let isAutoRefreshing = false;
+            
+            // ThingSpeak channel information
+            // NOTE: These need to be replaced with READ API keys, not write API keys
+            const channelInfo = [
+                { id: '2914193', readApiKey: 'EF6D0DPOLTWPMMUD' }, // Channel 1
+                { id: '2914195', readApiKey: '38S5DDJSWBATRB7O' }, // Channel 2
+                { id: '2914196', readApiKey: 'T5QY7KFJPIZV9JKU' }, // Channel 3
+                { id: '2914197', readApiKey: 'AYRC81YEPXIFJ4KN' }, // Channel 4
+                { id: '2914203', readApiKey: 'ZR0R7T5PN6QR1T4E' }, // Channel 5
+                { id: '2914204', readApiKey: '1GQOW8QBGG9Q3CYX' }  // Channel 6
+            ];
+        
+            // Function to generate proper chart URLs with read API keys
+            function updateChartUrls() {
+                for (let i = 0; i < channelInfo.length; i++) {
+                    const channelNum = i + 1;
+                    const channel = channelInfo[i];
+                    
+                    // Update first field chart (Spot 2*i+1)
+                    const chart1 = document.getElementById(`chart-${channelNum}-1`);
+                    if (chart1) {
+                        chart1.src = `https://thingspeak.com/channels/${channel.id}/charts/1?api_key=${channel.readApiKey}&bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=100&title=Spot+${2*i+1}&type=step`;
+                    }
+                    
+                    // Update second field chart (Spot 2*i+2)
+                    const chart2 = document.getElementById(`chart-${channelNum}-2`);
+                    if (chart2) {
+                        chart2.src = `https://thingspeak.com/channels/${channel.id}/charts/2?api_key=${channel.readApiKey}&bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=100&title=Spot+${2*i+2}&type=step`;
+                    }
+                }
+            }
+            
+            // Function to refresh all charts
+            function refreshAllCharts() {
+                const iframes = document.querySelectorAll('.chart-iframe');
+                iframes.forEach(iframe => {
+                    // Reload the iframe by updating its src
+                    iframe.src = iframe.src;
+                });
+                console.log('All charts refreshed at', new Date().toLocaleTimeString());
+            }
+            
+            // Event listeners
+            refreshAllBtn.addEventListener('click', refreshAllCharts);
+            refreshSidebarBtn.addEventListener('click', refreshAllCharts);
+            
+            // Toggle auto refresh
+            autoRefreshBtn.addEventListener('click', () => {
+                if (isAutoRefreshing) {
+                    // Turn off auto refresh
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshBtn.textContent = 'Auto Refresh: OFF';
+                    isAutoRefreshing = false;
+                } else {
+                    // Turn on auto refresh (every 30 seconds)
+                    autoRefreshInterval = setInterval(refreshAllCharts, 30000);
+                    autoRefreshBtn.textContent = 'Auto Refresh: ON';
+                    isAutoRefreshing = true;
+                }
+            });
+            
+            // Initial update of chart URLs
+            updateChartUrls();
+        });
+    </script>
+</body>
+</html>
