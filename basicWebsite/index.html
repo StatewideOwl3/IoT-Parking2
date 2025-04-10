@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Parking Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- ThingSpeak Charts library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>IoT Parking System Dashboard</h1>
+            <p>Real-time parking spot monitoring</p>
+        </header>
+        
+        <div class="dashboard">
+            <div class="card summary">
+                <h2>Parking Status</h2>
+                <div class="status-container">
+                    <div class="status-item">
+                        <div class="status-label">Spot 1</div>
+                        <div id="spot1-status" class="status-indicator available">Available</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Spot 2</div>
+                        <div id="spot2-status" class="status-indicator available">Available</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card chart-container">
+                <h2>Parking History</h2>
+                <canvas id="parkingHistoryChart"></canvas>
+            </div>
+            
+            <div class="card info">
+                <h2>System Information</h2>
+                <div class="info-item">
+                    <span class="info-label">Last Updated:</span>
+                    <span id="last-updated">Loading...</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Channel ID:</span>
+                    <span>2913587</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Data Source:</span>
+                    <span>ThingSpeak IoT Platform</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

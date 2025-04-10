@@ -9,14 +9,45 @@
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
     <style>
-        .parking-spots { display: flex; gap: 40px; flex-wrap: wrap; padding: 20px; }
-        .parking-spot-container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .parking-spot { padding: 30px 60px; border: none; border-radius: 12px; font-size: 18px; cursor: default; margin-bottom: 15px; width: 100%; }
+        .parking-spots { 
+            display: flex; 
+            gap: 20px; 
+            flex-wrap: wrap; 
+            padding: 20px; 
+            justify-content: center;
+        }
+        .parking-spot-container { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 15px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: calc(33.33% - 40px);
+            min-width: 250px;
+        }
+        .parking-spot { 
+            padding: 20px 30px; 
+            border: none; 
+            border-radius: 12px; 
+            font-size: 18px; 
+            cursor: default; 
+            margin-bottom: 15px; 
+            width: 100%; 
+            text-align: center;
+        }
         .spot-details { margin-top: 15px; }
-        .spot-details p { margin: 8px 0; color: #666; }
+        .spot-details p { margin: 8px 0; color: #666; font-size: 14px; }
         .spot-details span { font-weight: bold; }
         .available { background-color: var(--success); color: var(--white); }
         .occupied { background-color: var(--danger); color: var(--white); }
+        .sector-title {
+            width: 100%;
+            text-align: left;
+            margin: 10px 0;
+            font-size: 1.5rem;
+            color: #333;
+            padding: 10px;
+            border-bottom: 2px solid #eee;
+        }
     </style>
 </head>
 <body>
@@ -63,22 +94,146 @@
     </div>
 
     <div class="parking-spots">
+        <h2 class="sector-title">Sector A - Row 1</h2>
+        
+        <!-- Parking Spot 1 -->
         <div class="parking-spot-container">
-            <button class="parking-spot" id="spot-1" data-searchable="spot">Spot 1</button>
-            <div class="spot-details" id="spot-1-details">
-                <p>Status: <span id="spot-1-status" data-searchable="status">--</span></p>
-                <p>Last Change: <span id="spot-1-last-change" data-searchable="time">--</span></p>
+            <div id="spot-1-1" class="parking-spot available">
+                Spot A1
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-1-1-status">FREE</span></p>
+                <p>Last Change: <span id="spot-1-1-last-change">--</span></p>
             </div>
         </div>
+        
+        <!-- Parking Spot 2 -->
         <div class="parking-spot-container">
-            <button class="parking-spot" id="spot-2" data-searchable="spot">Spot 2</button>
-            <div class="spot-details" id="spot-2-details">
-                <p>Status: <span id="spot-2-status" data-searchable="status">--</span></p>
-                <p>Last Change: <span id="spot-2-last-change" data-searchable="time">--</span></p>
+            <div id="spot-1-2" class="parking-spot available">
+                Spot A2
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-1-2-status">FREE</span></p>
+                <p>Last Change: <span id="spot-1-2-last-change">--</span></p>
+            </div>
+        </div>
+        
+        <!-- Parking Spot 3 -->
+        <div class="parking-spot-container">
+            <div id="spot-2-1" class="parking-spot available">
+                Spot A3
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-2-1-status">FREE</span></p>
+                <p>Last Change: <span id="spot-2-1-last-change">--</span></p>
+            </div>
+        </div>
+        
+        <!-- Parking Spot 4 -->
+        <div class="parking-spot-container">
+            <div id="spot-2-2" class="parking-spot available">
+                Spot A4
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-2-2-status">FREE</span></p>
+                <p>Last Change: <span id="spot-2-2-last-change">--</span></p>
+            </div>
+        </div>
+        
+        <h2 class="sector-title">Sector A - Row 2</h2>
+        
+        <!-- Parking Spot 5 -->
+        <div class="parking-spot-container">
+            <div id="spot-3-1" class="parking-spot available">
+                Spot A5
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-3-1-status">FREE</span></p>
+                <p>Last Change: <span id="spot-3-1-last-change">--</span></p>
+            </div>
+        </div>
+        
+        <!-- Parking Spot 6 -->
+        <div class="parking-spot-container">
+            <div id="spot-3-2" class="parking-spot available">
+                Spot A6
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-3-2-status">FREE</span></p>
+                <p>Last Change: <span id="spot-3-2-last-change">--</span></p>
+            </div>
+        </div>
+        
+        <!-- Parking Spot 7 -->
+        <div class="parking-spot-container">
+            <div id="spot-4-1" class="parking-spot available">
+                Spot A7
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-4-1-status">FREE</span></p>
+                <p>Last Change: <span id="spot-4-1-last-change">--</span></p>
+            </div>
+        </div>
+        
+        <!-- Parking Spot 8 -->
+        <div class="parking-spot-container">
+            <div id="spot-4-2" class="parking-spot available">
+                Spot A8
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-4-2-status">FREE</span></p>
+                <p>Last Change: <span id="spot-4-2-last-change">--</span></p>
+            </div>
+        </div>
+        
+        <h2 class="sector-title">Sector B</h2>
+        
+        <!-- Parking Spot 9 -->
+        <div class="parking-spot-container">
+            <div id="spot-5-1" class="parking-spot available">
+                Spot B1
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-5-1-status">FREE</span></p>
+                <p>Last Change: <span id="spot-5-1-last-change">--</span></p>
+            </div>
+        </div>
+        
+        <!-- Parking Spot 10 -->
+        <div class="parking-spot-container">
+            <div id="spot-5-2" class="parking-spot available">
+                Spot B2
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-5-2-status">FREE</span></p>
+                <p>Last Change: <span id="spot-5-2-last-change">--</span></p>
+            </div>
+        </div>
+        
+        <!-- Parking Spot 11 -->
+        <div class="parking-spot-container">
+            <div id="spot-6-1" class="parking-spot available">
+                Spot B3
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-6-1-status">FREE</span></p>
+                <p>Last Change: <span id="spot-6-1-last-change">--</span></p>
+            </div>
+        </div>
+        
+        <!-- Parking Spot 12 -->
+        <div class="parking-spot-container">
+            <div id="spot-6-2" class="parking-spot available">
+                Spot B4
+            </div>
+            <div class="spot-details">
+                <p>Status: <span id="spot-6-2-status">FREE</span></p>
+                <p>Last Change: <span id="spot-6-2-last-change">--</span></p>
             </div>
         </div>
     </div>
 </div>
+
 <script src="parking_spaces.js"></script>
 <script src="search.js"></script>
 </body>
