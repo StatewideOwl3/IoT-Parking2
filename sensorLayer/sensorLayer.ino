@@ -1,30 +1,28 @@
 #include <WiFi.h>
-#include <HTTPClient.h>
+#include <PubSubClient.h> // MQTT library
 #include <ESP32Servo.h>
 #include <WiFiClientSecure.h>
+#include <ArduinoJson.h> // For JSON formatting
 
 // ====== Wi-Fi Credentials ======
 const char* ssid = "iPhone";
 const char* password = "DXBTURFD";
 
-// ====== ThingSpeak API Keys and Channels ======
-// Replace these with your actual API keys and channel IDs
-const char* apiKeys[6] = {
-  "MH9PG5BKVZIYGW18", // Channel 1 API Key
-  "FXNT93E2CGJZOXYZ",        // Channel 2 API Key
-  "241WNVOWZCVDUNL0",        // Channel 3 API Key
-  "B2NKKTZBEG91U9PX",        // Channel 4 API Key
-  "EMAQGRWKUB4SOUCN",        // Channel 5 API Key
-  "8EAR1YJRSYWMGHBO"         // Channel 6 API Key
-};
+// ====== MQTT Configuration ======
+const char* mqtt_server = "172.20.10.2"; // e.g. "192.168.1.100" or "broker.example.com"
+const int mqtt_port = 1883;
+const char* mqtt_username = ""; // Leave empty if not using authentication
+const char* mqtt_password = ""; // Leave empty if not using authentication
+const char* mqtt_client_id = "ESP32_ParkingSystem"; // Should be unique
 
-const int channelIDs[6] = {
-  2914193,  // Channel 1 ID
-  2914195,        // Channel 2 ID - Replace with actual channel ID
-  2914196,        // Channel 3 ID - Replace with actual channel ID
-  2914197,        // Channel 4 ID - Replace with actual channel ID
-  2914203,        // Channel 5 ID - Replace with actual channel ID
-  2914204         // Channel 6 ID - Replace with actual channel ID
+// MQTT Topics - one topic per sensor pair
+const char* mqtt_topics[6] = {
+  "parking/sensor1",  // Channel 1 - spots 1 & 2
+  "parking/sensor2",  // Channel 2 - spots 3 & 4
+  "parking/sensor3",  // Channel 3 - spots 5 & 6
+  "parking/sensor4",  // Channel 4 - spots 7 & 8
+  "parking/sensor5",  // Channel 5 - spots 9 & 10
+  "parking/sensor6"   // Channel 6 - spots 11 & 12
 };
 
 // ====== Pin Definitions ======
@@ -44,7 +42,11 @@ SemaphoreHandle_t readingMutex;  // For safe access to readings across tasks
 
 // Task handles for parallel operations
 TaskHandle_t irReadingTasks[6];
-TaskHandle_t thingSpeakTasks[6];
+TaskHandle_t mqttPublishTasks[6];
+
+// WiFi and MQTT client initialization
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
 
 // ====== WiFi Setup ======
 void connectToWiFi() {
@@ -55,6 +57,45 @@ void connectToWiFi() {
     Serial.print(".");
   }
   Serial.println("\nWi-Fi connected!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+// ====== MQTT Setup and Reconnection ======
+void setupMQTT() {
+  mqttClient.setServer(mqtt_server, mqtt_port);
+  
+  // Optional callback for receiving messages
+  mqttClient.setCallback([](char* topic, byte* payload, unsigned int length) {
+    // Handle incoming messages if needed
+    Serial.print("Message received on topic: ");
+    Serial.println(topic);
+  });
+}
+
+bool reconnectMQTT() {
+  if (!mqttClient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    
+    // Attempt to connect with authentication if provided
+    bool connected = false;
+    if (strlen(mqtt_username) > 0) {
+      connected = mqttClient.connect(mqtt_client_id, mqtt_username, mqtt_password);
+    } else {
+      connected = mqttClient.connect(mqtt_client_id);
+    }
+    
+    if (connected) {
+      Serial.println("connected!");
+      return true;
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(mqttClient.state());
+      Serial.println(" will try again in next cycle");
+      return false;
+    }
+  }
+  return true;
 }
 
 // ====== Parallel IR Reading Task ======
@@ -125,9 +166,10 @@ void irReadingTask(void* parameter) {
   }
 }
 
-// ====== ThingSpeak Send Task ======
-void thingSpeakTask(void* parameter) {
+// ====== MQTT Publish Task ======
+void mqttPublishTask(void* parameter) {
   int channelIndex = (int)parameter;
+  const char* topic = mqtt_topics[channelIndex];
   
   while (true) {
     // Wait for notification to start sending
@@ -140,23 +182,32 @@ void thingSpeakTask(void* parameter) {
     spot2 = spotReadings[channelIndex][1];
     xSemaphoreGive(readingMutex);
     
-    // Send to ThingSpeak (all channels send simultaneously)
-    if (WiFi.status() == WL_CONNECTED) {
-      HTTPClient http;
-      String url = "http://api.thingspeak.com/update?api_key=" + String(apiKeys[channelIndex]);
-      url += "&field1=" + String(spot1);
-      url += "&field2=" + String(spot2);
-
-      http.begin(url);
-      int response = http.GET();
-      http.end();
-
-      Serial.print("ThingSpeak Channel ");
-      Serial.print(channelIndex + 1);
-      Serial.print(" Response Code: ");
-      Serial.println(response);
+    // Check MQTT connection and reconnect if needed
+    if (!mqttClient.connected()) {
+      reconnectMQTT();
+    }
+    
+    // Format data as JSON
+    StaticJsonDocument<200> doc;
+    doc["sensorId"] = channelIndex + 1;
+    doc["spot1"] = spot1;
+    doc["spot2"] = spot2;
+    doc["timestamp"] = millis();
+    
+    char jsonBuffer[200];
+    serializeJson(doc, jsonBuffer);
+    
+    // Publish to MQTT topic
+    if (mqttClient.connected()) {
+      bool published = mqttClient.publish(topic, jsonBuffer, true); // retained message
+      
+      Serial.print("MQTT Publish to topic ");
+      Serial.print(topic);
+      Serial.print(": ");
+      Serial.println(published ? "Success" : "Failed");
+      Serial.println(jsonBuffer);
     } else {
-      Serial.println("Wi-Fi Disconnected! Can't send data.");
+      Serial.println("MQTT Disconnected! Can't send data.");
     }
   }
 }
@@ -180,10 +231,17 @@ void setup() {
   
   delay(1000); // Allow servos to reach position
   
+  // Connect to WiFi
+  connectToWiFi();
+  
+  // Setup MQTT
+  setupMQTT();
+  reconnectMQTT();
+  
   // Create mutex for safe access to readings
   readingMutex = xSemaphoreCreateMutex();
   
-  // Create tasks for parallel IR reading and ThingSpeak uploads
+  // Create tasks for parallel IR reading and MQTT publishing
   for (int i = 0; i < 6; i++) {
     xTaskCreatePinnedToCore(
       irReadingTask,    // Task function
@@ -196,87 +254,64 @@ void setup() {
     );
     
     xTaskCreatePinnedToCore(
-      thingSpeakTask,    // Task function
-      "ThingSpeakTask",  // Name
+      mqttPublishTask,   // Task function
+      "MQTTPublishTask", // Name
       4000,              // Stack size
       (void*)i,          // Parameter (channel index)
       1,                 // Priority
-      &thingSpeakTasks[i], // Task handle
+      &mqttPublishTasks[i], // Task handle
       1                  // Core (1)
     );
   }
-  
-  connectToWiFi();
-  
-  Serial.println("System initialized. Starting parking monitoring...");
 }
 
 // ====== Main Loop ======
 void loop() {
-  // All servos at center position (90°) for 10 seconds
-  Serial.println("=== ALL SERVOS AT CENTER POSITION (90°) ===");
-  for (int i = 0; i < 6; i++) {
-    servos[i].write(90);
-  }
-  delay(10000); // 10 seconds at center
+  static unsigned long lastServoMoveTime = 0;
+  static int servoState = 0; // 0 = center, 1 = left, 2 = right
   
-  // All servos at Spot 1 position (0°) for 5 seconds
-  Serial.println("=== ALL SERVOS AT POSITION 0° - SCANNING SPOT 1 ===");
-  for (int i = 0; i < 6; i++) {
-    servos[i].write(0);
-  }
-  delay(100); // Short delay for servos to start moving
+  // Run MQTT loop in the main loop to keep the connection alive
+  mqttClient.loop();
   
-  // Start all IR sensor reading tasks simultaneously for Spot 1
-  for (int i = 0; i < 6; i++) {
-    xTaskNotifyGive(irReadingTasks[i]);
+  // Ensure MQTT is connected
+  if (!mqttClient.connected()) {
+    reconnectMQTT();
   }
   
-  // Wait for 5 seconds for readings
-  delay(5000);
+  unsigned long currentTime = millis();
   
-  // All servos at Spot 2 position (180°) for 5 seconds
-  Serial.println("=== ALL SERVOS AT POSITION 180° - SCANNING SPOT 2 ===");
-  for (int i = 0; i < 6; i++) {
-    servos[i].write(180);
+  // Move servos at specific intervals
+  if (currentTime - lastServoMoveTime >= 10000) { // Every 10 seconds
+    lastServoMoveTime = currentTime;
+    
+    switch (servoState) {
+      case 0: // From center to left (0°)
+        for (int i = 0; i < 6; i++) {
+          servos[i].write(0);
+          // Notify the corresponding IR reading task
+          xTaskNotifyGive(irReadingTasks[i]);
+        }
+        servoState = 1;
+        break;
+        
+      case 1: // From left to right (180°)
+        for (int i = 0; i < 6; i++) {
+          servos[i].write(180);
+          // Notify the corresponding IR reading task
+          xTaskNotifyGive(irReadingTasks[i]);
+        }
+        servoState = 2;
+        break;
+        
+      case 2: // From right to center (90°)
+        for (int i = 0; i < 6; i++) {
+          servos[i].write(90);
+          
+          // Notify the MQTT publishing task after both spots are read
+          xTaskNotifyGive(mqttPublishTasks[i]);
+        }
+        servoState = 0;
+        break;
+    }
   }
-  delay(100); // Short delay for servos to start moving
-  
-  // Start all IR sensor reading tasks simultaneously for Spot 2
-  for (int i = 0; i < 6; i++) {
-    xTaskNotifyGive(irReadingTasks[i]);
-  }
-  
-  // Wait for 5 seconds for readings
-  delay(5000);
-  
-  // Return all servos to center position
-  for (int i = 0; i < 6; i++) {
-    servos[i].write(90);
-  }
-  
-  // Notify all ThingSpeak tasks to upload data simultaneously
-  for (int i = 0; i < 6; i++) {
-    xTaskNotifyGive(thingSpeakTasks[i]);
-  }
-  
-  // Report to Serial for all sensors
-  Serial.println("====================================");
-  Serial.println("PARKING STATUS REPORT - ALL SENSORS");
-  Serial.println("====================================");
-  
-  xSemaphoreTake(readingMutex, portMAX_DELAY);
-  for (int i = 0; i < 6; i++) {
-    Serial.print("Sensor ");
-    Serial.print(i + 1);
-    Serial.println(":");
-    Serial.print("  Spot 1: ");
-    Serial.println(spotReadings[i][0] == 1 ? "OCCUPIED" : "EMPTY");
-    Serial.print("  Spot 2: ");
-    Serial.println(spotReadings[i][1] == 1 ? "OCCUPIED" : "EMPTY");
-  }
-  xSemaphoreGive(readingMutex);
-  
-  Serial.println("Completed full cycle for all sensors");
-  delay(1000); // Short delay before next cycle
 }

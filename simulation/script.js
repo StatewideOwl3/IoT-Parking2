@@ -1,12 +1,14 @@
-// ThingSpeak Configuration
-const CHANNEL_INFO = [
-    { id: '2914193', apiKey: 'MH9PG5BKVZIYGW18' }, // Channel 1
-    { id: '2914195', apiKey: 'FXNT93E2CGJZOXYZ' }, // Channel 2
-    { id: '2914196', apiKey: '241WNVOWZCVDUNL0' }, // Channel 3
-    { id: '2914197', apiKey: 'B2NKKTZBEG91U9PX' }, // Channel 4
-    { id: '2914203', apiKey: 'EMAQGRWKUB4SOUCN' }, // Channel 5
-    { id: '2914204', apiKey: '8EAR1YJRSYWMGHBO' }  // Channel 6
-];
+// MQTT Configuration
+const MQTT_CONFIG = {
+    host: "ws://172.20.10.2:9001/mqtt",
+    username: '',
+    password: '',
+    clientId: 'parking_simulator_' + Math.random().toString(16).substr(2, 8),
+    topics: {
+        base: 'parking',
+        sensor: (channel, spot) => `parking/sensor${channel}/spot${spot}`
+    }
+};
 
 // Simulation State
 let simulationRunning = false;
@@ -15,6 +17,8 @@ let targetOccupancy = 50; // percentage
 let simulationInterval;
 let parkingSpots = {};
 let occupiedCount = 0;
+let mqttClient = null;
+let isConnected = false;
 
 // Elements
 const startButton = document.getElementById('start-simulation');
@@ -25,177 +29,123 @@ const occupancySlider = document.getElementById('occupancy-rate');
 const occupancyValue = document.getElementById('occupancy-value');
 const occupiedCountElement = document.getElementById('occupied-count');
 const lastUpdateElement = document.getElementById('last-update');
-const apiStatusElement = document.getElementById('api-status');
+const connectionStatusElement = document.getElementById('connection-status');
 const logContainer = document.getElementById('log-container');
 
 // Initialize parking spots
 function initializeParkingSpots() {
+    const parkingArea = document.querySelector('.parking-area');
     for (let channel = 1; channel <= 6; channel++) {
-        for (let field = 1; field <= 2; field++) {
-            const spotId = `spot-${channel}-${field}`;
-            const spotElement = document.getElementById(spotId);
+        const sensorElement = document.createElement('div');
+        sensorElement.classList.add('sensor', `sensor${channel}`);
+        parkingArea.appendChild(sensorElement);
+
+        for (let spot = 1; spot <= 2; spot++) {
+            const spotElement = document.createElement('div');
+            spotElement.classList.add('spot', `spot${spot}`);
+            const spotId = `spot-${channel}-${spot}`;
+            spotElement.dataset.spotId = spotId;
             
-            if (spotElement) {
-                parkingSpots[spotId] = {
-                    element: spotElement,
-                    occupied: false,
-                    channel: channel,
-                    field: field
-                };
-                
-                // Add click listener to manually toggle spots
-                spotElement.addEventListener('click', () => {
-                    if (simulationRunning) {
-                        toggleSpotManually(spotId);
-                    }
-                });
-            }
+            // Add car icon and spot number
+            spotElement.innerHTML = `
+                <i class="fas fa-car"></i>
+                <span class="spot-number">${(channel-1)*2 + spot}</span>
+            `;
+            
+            sensorElement.appendChild(spotElement);
+            
+            // Initialize spot state
+            parkingSpots[spotId] = false;
         }
     }
-}
-
-// Toggle a spot's status manually when clicked
-function toggleSpotManually(spotId) {
-    const spot = parkingSpots[spotId];
-    const newStatus = !spot.occupied;
-    
-    updateSpotStatus(spotId, newStatus);
-    sendToThingSpeak(spot.channel, spot.field, newStatus ? 1 : 0);
-    
-    addLogEntry(`Manual toggle: Spot ${spotId.split('-')[2] === '1' ? 'A' : 'B'}${spotId.split('-')[1]} is now ${newStatus ? 'occupied' : 'free'}`);
 }
 
 // Update a spot's visual status
 function updateSpotStatus(spotId, isOccupied) {
-    const spot = parkingSpots[spotId];
-    const wasOccupied = spot.occupied;
-    
-    spot.occupied = isOccupied;
-    
-    // Add animation class based on state change
-    if (wasOccupied !== isOccupied) {
-        spot.element.classList.remove('car-entering', 'car-leaving');
+    const spotElement = document.querySelector(`[data-spot-id="${spotId}"]`);
+
+    if (spotElement) {
+        spotElement.classList.toggle('occupied', isOccupied);
+        parkingSpots[spotId] = isOccupied;
         
-        if (isOccupied) {
-            spot.element.classList.add('car-entering');
-        } else {
-            spot.element.classList.add('car-leaving');
-        }
+        // Add animation class
+        spotElement.classList.add('status-change');
+        setTimeout(() => spotElement.classList.remove('status-change'), 500);
     }
-    
-    // Update CSS class for occupied/available
-    if (isOccupied) {
-        spot.element.classList.add('occupied');
-    } else {
-        spot.element.classList.remove('occupied');
-    }
-    
-    // Update occupied count
+
+    // Update occupied count and last update time
     updateOccupiedCount();
+    lastUpdateElement.textContent = new Date().toLocaleTimeString();
 }
 
 // Update total occupied count
 function updateOccupiedCount() {
-    occupiedCount = Object.values(parkingSpots).filter(spot => spot.occupied).length;
+    const occupiedSpots = document.querySelectorAll('.spot.occupied');
+    occupiedCount = occupiedSpots.length;
     occupiedCountElement.textContent = `${occupiedCount}/12`;
-}
-
-// Send data to ThingSpeak
-function sendToThingSpeak(channelIndex, fieldIndex, value) {
-    // ThingSpeak API only allows one update per channel every 15 seconds
-    apiStatusElement.textContent = 'Sending...';
-    
-    const channel = CHANNEL_INFO[channelIndex - 1];
-    
-    // Construct ThingSpeak URL
-    const url = `https://api.thingspeak.com/update?api_key=${channel.apiKey}&field${fieldIndex}=${value}`;
-    
-    // Make actual HTTP request to ThingSpeak
-    fetch(url)
-        .then(response => response.text())
-        .then(data => {
-            console.log(`ThingSpeak response: ${data}`);
-            
-            // Update last update time
-            const now = new Date();
-            const timeString = now.toLocaleTimeString();
-            lastUpdateElement.textContent = timeString;
-            
-            // Update API status based on response
-            if (data > 0) {
-                apiStatusElement.textContent = 'Success';
-            } else {
-                apiStatusElement.textContent = 'Error: Rate limit';
-            }
-            
-            setTimeout(() => {
-                apiStatusElement.textContent = 'Ready';
-            }, 2000);
-        })
-        .catch(error => {
-            console.error('Error sending to ThingSpeak:', error);
-            apiStatusElement.textContent = 'Error!';
-            
-            setTimeout(() => {
-                apiStatusElement.textContent = 'Ready';
-            }, 2000);
-        });
 }
 
 // Add a log entry
 function addLogEntry(message) {
     const now = new Date();
     const timeString = now.toLocaleTimeString();
-    
+
     const logEntry = document.createElement('div');
     logEntry.className = 'log-entry';
     logEntry.innerHTML = `
         <span class="log-time">${timeString}</span>
+        <i class="fas fa-info-circle"></i>
         <span class="log-message">${message}</span>
     `;
-    
+
     logContainer.prepend(logEntry);
-    
+    logEntry.style.opacity = '0';
+    setTimeout(() => logEntry.style.opacity = '1', 10);
+
     // Limit log entries to prevent memory issues
-    if (logContainer.children.length > 50) {
-        logContainer.lastChild.remove();
+    while (logContainer.children.length > 50) {
+        const lastChild = logContainer.lastChild;
+        lastChild.style.opacity = '0';
+        setTimeout(() => lastChild.remove(), 300);
     }
 }
 
 // Run one simulation cycle
 function runSimulationCycle() {
+    if (!isConnected) {
+        addLogEntry('Cannot run simulation: Not connected to MQTT broker');
+        stopSimulation();
+        return;
+    }
+
     // Calculate how many spots should be occupied based on target occupancy
     const targetOccupiedCount = Math.round((targetOccupancy / 100) * 12);
-    
-    // Determine if we need to add or remove cars
-    if (occupiedCount < targetOccupiedCount) {
+    const currentOccupiedSpots = Object.entries(parkingSpots).filter(([_, isOccupied]) => isOccupied).length;
+
+    if (currentOccupiedSpots < targetOccupiedCount) {
         // Find available spots and randomly occupy one
-        const availableSpots = Object.entries(parkingSpots).filter(([id, spot]) => !spot.occupied);
-        
+        const availableSpots = Object.entries(parkingSpots)
+            .filter(([_, isOccupied]) => !isOccupied)
+            .map(([spotId]) => spotId);
+
         if (availableSpots.length > 0) {
-            // Get a random available spot
-            const randomIndex = Math.floor(Math.random() * availableSpots.length);
-            const [spotId, spot] = availableSpots[randomIndex];
-            
-            // Occupy the spot
-            updateSpotStatus(spotId, true);
-            sendToThingSpeak(spot.channel, spot.field, 1);
+            const randomSpotId = availableSpots[Math.floor(Math.random() * availableSpots.length)];
+            updateSpotStatus(randomSpotId, true);
+            publishParkingData(randomSpotId, true);
             addLogEntry(`Car arrived: Spot ${spotId.split('-')[2] === '1' ? 'A' : 'B'}${spotId.split('-')[1]} is now occupied`);
         }
-    } 
-    else if (occupiedCount > targetOccupiedCount) {
+    }
+    else if (currentOccupiedSpots > targetOccupiedCount) {
         // Find occupied spots and randomly free one
-        const occupiedSpots = Object.entries(parkingSpots).filter(([id, spot]) => spot.occupied);
-        
+        const occupiedSpots = Object.entries(parkingSpots)
+            .filter(([_, isOccupied]) => isOccupied)
+            .map(([spotId]) => spotId);
+
         if (occupiedSpots.length > 0) {
-            // Get a random occupied spot
-            const randomIndex = Math.floor(Math.random() * occupiedSpots.length);
-            const [spotId, spot] = occupiedSpots[randomIndex];
-            
-            // Free the spot
-            updateSpotStatus(spotId, false);
-            sendToThingSpeak(spot.channel, spot.field, 0);
-            addLogEntry(`Car departed: Spot ${spotId.split('-')[2] === '1' ? 'A' : 'B'}${spotId.split('-')[1]} is now free`);
+            const randomSpotId = occupiedSpots[Math.floor(Math.random() * occupiedSpots.length)];
+            updateSpotStatus(randomSpotId, false);
+            publishParkingData(randomSpotId, false);
+            addLogEntry(`Car departed: Spot ${randomSpotId.split('-')[2] === '1' ? 'A' : 'B'}${randomSpotId.split('-')[1]} is now free`);
         }
     }
     else {
@@ -203,54 +153,85 @@ function runSimulationCycle() {
         if (Math.random() < 0.3) { // 30% chance of a random change
             // Decide whether to add or remove a car (with equal probability)
             const addCar = Math.random() < 0.5;
-            
-            if (addCar && occupiedCount < 12) {
+
+            if (addCar && currentOccupiedSpots < 12) {
                 // Find available spots and randomly occupy one
-                const availableSpots = Object.entries(parkingSpots).filter(([id, spot]) => !spot.occupied);
-                
+                const availableSpots = Object.entries(parkingSpots)
+                    .filter(([_, isOccupied]) => !isOccupied)
+                    .map(([spotId]) => spotId);
+
                 if (availableSpots.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * availableSpots.length);
-                    const [spotId, spot] = availableSpots[randomIndex];
-                    
-                    updateSpotStatus(spotId, true);
-                    sendToThingSpeak(spot.channel, spot.field, 1);
-                    addLogEntry(`Random arrival: Spot ${spotId.split('-')[2] === '1' ? 'A' : 'B'}${spotId.split('-')[1]} is now occupied`);
+                    const randomSpotId = availableSpots[Math.floor(Math.random() * availableSpots.length)];
+                    updateSpotStatus(randomSpotId, true);
+                    publishParkingData(randomSpotId, true);
+                    addLogEntry(`Random arrival: Spot ${randomSpotId.split('-')[2] === '1' ? 'A' : 'B'}${randomSpotId.split('-')[1]} is now occupied`);
                 }
-            } 
-            else if (!addCar && occupiedCount > 0) {
+            }
+            else if (!addCar && currentOccupiedSpots > 0) {
                 // Find occupied spots and randomly free one
-                const occupiedSpots = Object.entries(parkingSpots).filter(([id, spot]) => spot.occupied);
-                
+                const occupiedSpots = Object.entries(parkingSpots)
+                    .filter(([_, isOccupied]) => isOccupied)
+                    .map(([spotId]) => spotId);
+
                 if (occupiedSpots.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * occupiedSpots.length);
-                    const [spotId, spot] = occupiedSpots[randomIndex];
-                    
-                    updateSpotStatus(spotId, false);
-                    sendToThingSpeak(spot.channel, spot.field, 0);
-                    addLogEntry(`Random departure: Spot ${spotId.split('-')[2] === '1' ? 'A' : 'B'}${spotId.split('-')[1]} is now free`);
+                    const randomSpotId = occupiedSpots[Math.floor(Math.random() * occupiedSpots.length)];
+                    updateSpotStatus(randomSpotId, false);
+                    publishParkingData(randomSpotId, false);
+                    addLogEntry(`Random departure: Spot ${randomSpotId.split('-')[2] === '1' ? 'A' : 'B'}${randomSpotId.split('-')[1]} is now free`);
                 }
             }
         }
     }
 }
 
+// Publish parking data to MQTT
+function publishParkingData(spotId, isOccupied) {
+    if (!isConnected) {
+        addLogEntry('Cannot publish: Not connected to MQTT broker');
+        return;
+    }
+
+    const [_, channel, spot] = spotId.split('-');
+    
+    const message = new Paho.MQTT.Message(JSON.stringify({
+        spot_id: spotId,
+        status: isOccupied ? 1 : 0,
+        timestamp: new Date().toISOString()
+    }));
+    
+    message.destinationName = `parking/sensor${channel}/spot${spot}`;
+    message.qos = 1;
+    
+    try {
+        mqttClient.send(message);
+        addLogEntry(`Data sent for ${spotId}: ${isOccupied ? 'Occupied' : 'Vacant'}`);
+        connectionStatusElement.innerHTML = '<i class="fas fa-check-circle"></i> Connected';
+        connectionStatusElement.className = 'success';
+    } catch (error) {
+        console.error('Error:', error);
+        addLogEntry(`Failed to send data for ${spotId}: ${error.message}`);
+        connectionStatusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error';
+        connectionStatusElement.className = 'error';
+    }
+}
+
 // Start simulation
 function startSimulation() {
     if (simulationRunning) return;
-    
+
     simulationRunning = true;
     startButton.disabled = true;
     stopButton.disabled = false;
-    
+
     // Calculate interval time based on speed (in seconds)
     // Speed 1 = 30s, Speed 10 = 3s
     const intervalTime = (31 - (simulationSpeed * 3)) * 1000;
-    
-    addLogEntry(`Simulation started with speed ${simulationSpeed} (${intervalTime/1000}s interval) and target occupancy ${targetOccupancy}%`);
-    
+
+    addLogEntry(`Simulation started with speed ${simulationSpeed} (${intervalTime / 1000}s interval) and target occupancy ${targetOccupancy}%`);
+
     // Run an initial cycle
     runSimulationCycle();
-    
+
     // Set interval for ongoing simulation
     simulationInterval = setInterval(runSimulationCycle, intervalTime);
 }
@@ -258,13 +239,13 @@ function startSimulation() {
 // Stop simulation
 function stopSimulation() {
     if (!simulationRunning) return;
-    
+
     simulationRunning = false;
     startButton.disabled = false;
     stopButton.disabled = true;
-    
+
     clearInterval(simulationInterval);
-    
+
     addLogEntry('Simulation stopped');
 }
 
@@ -275,7 +256,7 @@ stopButton.addEventListener('click', stopSimulation);
 speedSlider.addEventListener('input', () => {
     simulationSpeed = parseInt(speedSlider.value);
     speedValue.textContent = simulationSpeed;
-    
+
     // If simulation is running, restart it with new speed
     if (simulationRunning) {
         stopSimulation();
@@ -288,8 +269,78 @@ occupancySlider.addEventListener('input', () => {
     occupancyValue.textContent = `${targetOccupancy}%`;
 });
 
+// Connect to MQTT broker
+function connectMQTT() {
+    mqttClient = new Paho.MQTT.Client(
+        MQTT_CONFIG.host,
+        MQTT_CONFIG.clientId
+    );
+
+    mqttClient.onConnectionLost = onConnectionLost;
+    mqttClient.onMessageArrived = onMessageArrived;
+
+    const connectOptions = {
+        onSuccess: onConnect,
+        onFailure: onConnectFailure,
+        useSSL: false,
+        timeout: 3,
+        keepAliveInterval: 60
+    };
+
+    if (MQTT_CONFIG.username) {
+        connectOptions.userName = MQTT_CONFIG.username;
+        connectOptions.password = MQTT_CONFIG.password;
+    }
+
+    connectionStatusElement.innerHTML = '<i class="fas fa-sync fa-spin"></i> Connecting...';
+    connectionStatusElement.className = 'warning';
+    
+    try {
+        mqttClient.connect(connectOptions);
+    } catch (error) {
+        console.error('Connection error:', error);
+        onConnectFailure(error);
+    }
+}
+
+function onConnect() {
+    console.log("Connected to MQTT broker");
+    MQTT_CONFIG.topics.forEach(topic => {
+        client.subscribe(topic);
+        console.log("Subscribed to topic:", topic);
+    });
+}
+
+function onConnectFailure(response) {
+    console.log("Failed to connect to MQTT broker: " + response.errorMessage);
+}
+
+function onConnectionLost(responseObject) {
+    if (responseObject.errorCode !== 0) {
+        console.log("Connection Lost: " + responseObject.errorMessage);
+    }
+}
+
+function onMessageArrived(message) {
+    console.log("Message Arrived: " + message.payloadString);
+    const topic = message.destinationName;
+    const payload = JSON.parse(message.payloadString);
+
+    // Extract sensor number from topic (e.g., "parkingsystem/sensor1" -> 1)
+    const sensorNumber = topic.split('sensor')[1];
+
+    // Update spot status based on MQTT message
+    const spot1Status = payload.spot1;
+    const spot2Status = payload.spot2;
+
+    updateSpotStatus(`spot-${sensorNumber}-1`, spot1Status === 1);
+    updateSpotStatus(`spot-${sensorNumber}-2`, spot2Status === 1);
+}
+
 // Initialize everything when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     initializeParkingSpots();
+    updateOccupiedCount();
+    connectMQTT();
     addLogEntry('Simulation ready to start');
 });

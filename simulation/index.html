@@ -6,6 +6,40 @@
     <title>Parking Lot Simulation</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <style>
+        .simulation-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+
+        .control-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-group label {
+            font-weight: bold;
+        }
+
+        .control-group input[type="range"] {
+            width: 200px;
+        }
+
+        .log-container {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            height: 200px;
+            overflow-y: scroll;
+        }
+    </style>
 </head>
 <body>
     <div class="sidebar">
@@ -52,82 +86,30 @@
                     <span id="speed-value">5</span>
                 </div>
                 <div class="control-group">
-                    <label for="occupancy-rate">Target Occupancy Rate (%):</label>
+                    <label for="occupancy-rate">Occupancy Rate:</label>
                     <input type="range" id="occupancy-rate" min="0" max="100" value="50">
                     <span id="occupancy-value">50%</span>
                 </div>
-            </div>
+                <div class="control-group">
+                    <label>Occupied Spots:</label>
+                    <span id="occupied-count">0/12</span>
+                </div>
+                <div class="control-group">
+                    <label>Last Update:</label>
+                    <span id="last-update">Never</span>
+                </div>
+                <div class="control-group">
+                    <label>Connection Status:</label>
+                    <span id="connection-status" class="warning"><i class="fas fa-sync fa-spin"></i> Connecting...</span>
+                </div>
 
-            <div class="stats-cards">
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="fas fa-car"></i></div>
-                    <div class="stat-info">
-                        <h3>Occupied Spots</h3>
-                        <p id="occupied-count">0/12</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
-                    <div class="stat-info">
-                        <h3>Last Update</h3>
-                        <p id="last-update">--</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="fas fa-wifi"></i></div>
-                    <div class="stat-info">
-                        <h3>API Status</h3>
-                        <p id="api-status">Ready</p>
-                    </div>
-                </div>
             </div>
-
-            <div class="parking-layout">
-                <h2 class="section-title">Mall Parking Layout</h2>
-                <div class="entrance-exit">
-                    <div class="entrance">Entrance</div>
-                    <div class="exit">Exit</div>
-                </div>
-                <div class="parking-area">
-                    <div class="sector-a">
-                        <h3>Sector A</h3>
-                        <div class="row">
-                            <div id="spot-1-1" class="parking-spot" data-channel="1" data-field="1">Spot 1</div>
-                            <div id="spot-1-2" class="parking-spot" data-channel="1" data-field="2">Spot 2</div>
-                            <div id="spot-2-1" class="parking-spot" data-channel="2" data-field="1">Spot 3</div>
-                            <div id="spot-2-2" class="parking-spot" data-channel="2" data-field="2">Spot 4</div>
-                        </div>
-                        <div class="row">
-                            <div id="spot-3-1" class="parking-spot" data-channel="3" data-field="1">Spot 5</div>
-                            <div id="spot-3-2" class="parking-spot" data-channel="3" data-field="2">Spot 6</div>
-                            <div id="spot-4-1" class="parking-spot" data-channel="4" data-field="1">Spot 7</div>
-                            <div id="spot-4-2" class="parking-spot" data-channel="4" data-field="2">Spot 8</div>
-                        </div>
-                    </div>
-                    <div class="sector-b">
-                        <h3>Sector B</h3>
-                        <div class="row">
-                            <div id="spot-5-1" class="parking-spot" data-channel="5" data-field="1">Spot 9</div>
-                            <div id="spot-5-2" class="parking-spot" data-channel="5" data-field="2">Spot 10</div>
-                            <div id="spot-6-1" class="parking-spot" data-channel="6" data-field="1">Spot 11</div>
-                            <div id="spot-6-2" class="parking-spot" data-channel="6" data-field="2">Spot 12</div>
-                        </div>
-                    </div>
-                </div>
+            <div class="parking-area">
             </div>
-
-            <div class="activity-log">
-                <h2 class="section-title">Activity Log</h2>
-                <div id="log-container" class="log-container">
-                    <div class="log-entry">
-                        <span class="log-time">22:39:34</span>
-                        <span class="log-message">Simulation ready to start</span>
-                    </div>
+            <div class="log-container" id="log-container">
                 </div>
-            </div>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
