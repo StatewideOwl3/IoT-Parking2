@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parking Lot Simulation</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <!-- Using Font Awesome subset to reduce memory usage -->    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" />
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
-    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <!-- Defer non-critical scripts -->    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js" defer></script>
 </head>
 <body>
     <div class="sidebar">
@@ -41,7 +44,8 @@
                     <span class="notification-badge">0</span>
                 </div>
                 <div class="profile">
-                    <img src="https://randomuser.me/api/portraits/men/44.jpg" alt="Profile" />
+                    <!-- Optimized with smaller image and loading attribute -->
+                    <img src="https://randomuser.me/api/portraits/thumb/men/44.jpg" alt="Profile" loading="lazy" width="40" height="40" />
                 </div>
             </div>
         </div>

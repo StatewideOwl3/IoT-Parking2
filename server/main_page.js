@@ -7,7 +7,7 @@ const MQTT_CONFIG = {
     password: 'Team35_Admin',// Replace with your HiveMQ password
     // ================================================================
     
-    clientId: 'ParkingDashboard_' + Math.random().toString(16).substr(2, 8),
+    clientId: 'ESP32_ParkingSystem',  // Using authorized ID from HiveMQ
     topics: [
         'parking/sensor1',
         'parking/sensor2',

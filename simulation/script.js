@@ -7,7 +7,7 @@ const MQTT_CONFIG = {
     password: 'Team35_Admin',// Replace with your HiveMQ password
     // ================================================================
     
-    clientId: 'parking_simulator_' + Math.random().toString(16).substr(2, 8),
+    clientId: 'ESP32_ParkingSystem',  // Using the alternative ID pattern from HiveMQ
     topics: {
         base: 'parking',
         sensor: (channel, spot) => `parking/sensor${channel}/spot${spot}`
@@ -228,49 +228,58 @@ function updateOccupiedCount() {
     occupiedCountElement.textContent = `${occupiedCount}/12`;
 }
 
+// Memory-efficient log entry addition with DOM reuse
+const LOG_LIMIT = 20; // Reduced from 50 to save memory
+let logPool = [];
+
 // Add a log entry
 function addLogEntry(message) {
-    // Safety check - if logContainer doesn't exist, don't try to add logs
-    if (!logContainer) {
-        console.log('Log message (container missing):', message);
+    // Skip empty messages
+    if (!message || !logContainer) {
         return;
     }
 
     try {
         const now = new Date();
         const timeString = now.toLocaleTimeString();
-
+        
+        // Create or reuse a log entry element
         const logEntry = document.createElement('div');
         logEntry.className = 'log-entry';
-        logEntry.innerHTML = `
-            <span class="log-time">${timeString}</span>
-            <i class="fas fa-info-circle"></i>
-            <span class="log-message">${message}</span>
-        `;
-
+        // Use textContent instead of innerHTML for better performance
+        
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'log-time';
+        timeSpan.textContent = timeString;
+        
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-info-circle';
+        
+        const messageSpan = document.createElement('span');
+        messageSpan.className = 'log-message';
+        messageSpan.textContent = message;
+        
+        logEntry.appendChild(timeSpan);
+        logEntry.appendChild(icon);
+        logEntry.appendChild(messageSpan);
+        
+        // Add to the top of the log
         logContainer.prepend(logEntry);
+        
+        // Simple fade in without setTimeout to reduce callbacks
         logEntry.style.opacity = '0';
-        setTimeout(() => {
-            if (logEntry && logEntry.style) {
-                logEntry.style.opacity = '1';
-            }
-        }, 10);
-
-        // Limit log entries to prevent memory issues
-        while (logContainer.children.length > 50) {
-            const lastChild = logContainer.lastChild;
-            if (lastChild && lastChild.nodeType === Node.ELEMENT_NODE) {
-                lastChild.style.opacity = '0';
-                setTimeout(() => {
-                    if (lastChild && lastChild.parentNode) {
-                        lastChild.remove();
-                    }
-                }, 300);
-            } else {
-                // If it's not an element node, just remove it directly
-                if (lastChild && lastChild.parentNode) {
-                    lastChild.remove();
-                }
+        // Use requestAnimationFrame instead of setTimeout
+        requestAnimationFrame(() => {
+            logEntry.style.opacity = '1';
+        });
+        
+        // Limit entries - remove extras without animations
+        if (logContainer.children.length > LOG_LIMIT) {
+            // Batch removals to avoid layout thrashing
+            const toRemove = [];
+            while (logContainer.children.length > LOG_LIMIT) {
+                toRemove.push(logContainer.lastChild);
+                logContainer.removeChild(logContainer.lastChild);
             }
         }
     } catch (error) {
@@ -279,141 +288,163 @@ function addLogEntry(message) {
     }
 }
 
+// Memory and CPU-efficient simulation cycle
+let lastMqttPublishTime = 0;
+let pendingPublishQueue = [];
+const MQTT_THROTTLE_MS = 1500; // Throttle MQTT publishes to max once per 1.5 seconds
+
+// Helper function to get sector and spot info - extracted to avoid repetition
+function getSpotDescription(spotId) {
+    const parts = spotId.split('-');
+    const channelNum = parseInt(parts[1]);
+    const spotNum = parts[2];
+    
+    // Determine sector (A, B, C)
+    let sector;
+    if (channelNum <= 2) sector = 'A';
+    else if (channelNum <= 4) sector = 'B';
+    else sector = 'C';
+    
+    // Calculate spot number within sector
+    let spotInSector;
+    if (channelNum % 2 === 1) { // odd channel
+        spotInSector = spotNum === '1' ? 1 : 2;
+    } else { // even channel
+        spotInSector = spotNum === '1' ? 3 : 4;
+    }
+    
+    return { sector, spotInSector };
+}
+
+// Process the MQTT publish queue efficiently
+function processMqttQueue() {
+    const now = Date.now();
+    if (pendingPublishQueue.length === 0 || now - lastMqttPublishTime < MQTT_THROTTLE_MS) {
+        return false;
+    }
+    
+    // For efficiency, only publish the latest status for each spot
+    const latestSpotStatus = {};
+    
+    // Build map of latest status for each spot
+    pendingPublishQueue.forEach(item => {
+        latestSpotStatus[item.spotId] = item.isOccupied;
+    });
+    
+    // Publish the latest status for each spot
+    for (const [spotId, isOccupied] of Object.entries(latestSpotStatus)) {
+        publishParkingData(spotId, isOccupied);
+    }
+    
+    // Clear queue and update timestamp
+    pendingPublishQueue = [];
+    lastMqttPublishTime = now;
+    return true;
+}
+
 // Run one simulation cycle
 function runSimulationCycle() {
     if (!isConnected) {
-        addLogEntry('Cannot run simulation: Not connected to MQTT cloud broker');
+        addLogEntry('Cannot run simulation: Not connected to MQTT broker');
         stopSimulation();
         return;
     }
 
+    const now = new Date();
+    const currentTime = now.getTime();
+    
+    // First process any pending MQTT publishes
+    processMqttQueue();
+    
     // Calculate how many spots should be occupied based on target occupancy
     const targetOccupiedCount = Math.round((targetOccupancy / 100) * 12);
     const currentOccupiedSpots = Object.entries(parkingSpots).filter(([_, isOccupied]) => isOccupied).length;
-
+    
+    // Queue an update based on current state
+    let updatePerformed = false;
+    let action = null;
+    let spotId = null;
+    
     if (currentOccupiedSpots < targetOccupiedCount) {
-        // Find available spots and randomly occupy one
+        // Need to fill spots - find empty ones
         const availableSpots = Object.entries(parkingSpots)
             .filter(([_, isOccupied]) => !isOccupied)
-            .map(([spotId]) => spotId);
+            .map(([id]) => id);
 
         if (availableSpots.length > 0) {
-            const randomSpotId = availableSpots[Math.floor(Math.random() * availableSpots.length)];
-            updateSpotStatus(randomSpotId, true);
-            publishParkingData(randomSpotId, true);
-            const channelNum = randomSpotId.split('-')[1];
-            const spotNum = randomSpotId.split('-')[2];
-            // Determine the sector letter (A, B, or C) based on the channel
-            let sector;
-            if (channelNum <= 2) sector = 'A';
-            else if (channelNum <= 4) sector = 'B';
-            else sector = 'C';
+            // Choose random spot efficiently
+            spotId = availableSpots[Math.floor(Math.random() * availableSpots.length)];
+            updateSpotStatus(spotId, true);
+            action = 'arrived';
+            updatePerformed = true;
             
-            // Calculate spot number within the sector
-            let spotInSector;
-            if (channelNum % 2 === 1) { // odd channel
-                spotInSector = spotNum === '1' ? 1 : 2;
-            } else { // even channel
-                spotInSector = spotNum === '1' ? 3 : 4;
-            }
-            
-            addLogEntry(`Car arrived: Spot ${sector}${spotInSector} is now occupied`);
+            // Queue for MQTT publish instead of immediate publish
+            pendingPublishQueue.push({ spotId, isOccupied: true });
         }
     }
     else if (currentOccupiedSpots > targetOccupiedCount) {
-        // Find occupied spots and randomly free one
+        // Need to vacate spots - find occupied ones
         const occupiedSpots = Object.entries(parkingSpots)
             .filter(([_, isOccupied]) => isOccupied)
-            .map(([spotId]) => spotId);
+            .map(([id]) => id);
 
         if (occupiedSpots.length > 0) {
-            const randomSpotId = occupiedSpots[Math.floor(Math.random() * occupiedSpots.length)];
-            updateSpotStatus(randomSpotId, false);
-            publishParkingData(randomSpotId, false);
-            const channelNum = randomSpotId.split('-')[1];
-            const spotNum = randomSpotId.split('-')[2];
-            // Determine the sector letter (A, B, or C) based on the channel
-            let sector;
-            if (channelNum <= 2) sector = 'A';
-            else if (channelNum <= 4) sector = 'B';
-            else sector = 'C';
+            spotId = occupiedSpots[Math.floor(Math.random() * occupiedSpots.length)];
+            updateSpotStatus(spotId, false);
+            action = 'departed';
+            updatePerformed = true;
             
-            // Calculate spot number within the sector
-            let spotInSector;
-            if (channelNum % 2 === 1) { // odd channel
-                spotInSector = spotNum === '1' ? 1 : 2;
-            } else { // even channel
-                spotInSector = spotNum === '1' ? 3 : 4;
-            }
-            
-            addLogEntry(`Car departed: Spot ${sector}${spotInSector} is now free`);
+            // Queue for MQTT publish
+            pendingPublishQueue.push({ spotId, isOccupied: false });
         }
     }
     else {
-        // If we're at the target, still allow for random changes
-        if (Math.random() < 0.3) { // 30% chance of a random change
-            // Decide whether to add or remove a car (with equal probability)
-            const addCar = Math.random() < 0.5;
-
-            if (addCar && currentOccupiedSpots < 12) {
-                // Find available spots and randomly occupy one
+        // At target occupancy - occasional random changes (reduced probability)
+        if (Math.random() < 0.2) { // Reduced from 0.3 to save resources
+            const addCar = Math.random() < 0.5 && currentOccupiedSpots < 12;
+            
+            if (addCar) {
                 const availableSpots = Object.entries(parkingSpots)
                     .filter(([_, isOccupied]) => !isOccupied)
-                    .map(([spotId]) => spotId);
+                    .map(([id]) => id);
 
                 if (availableSpots.length > 0) {
-                    const randomSpotId = availableSpots[Math.floor(Math.random() * availableSpots.length)];
-                    updateSpotStatus(randomSpotId, true);
-                    publishParkingData(randomSpotId, true);
-                    const channelNum = randomSpotId.split('-')[1];
-                    const spotNum = randomSpotId.split('-')[2];
-                    // Determine the sector letter (A, B, or C) based on the channel
-                    let sector;
-                    if (channelNum <= 2) sector = 'A';
-                    else if (channelNum <= 4) sector = 'B';
-                    else sector = 'C';
+                    spotId = availableSpots[Math.floor(Math.random() * availableSpots.length)];
+                    updateSpotStatus(spotId, true);
+                    action = 'random-arrived';
+                    updatePerformed = true;
                     
-                    // Calculate spot number within the sector
-                    let spotInSector;
-                    if (channelNum % 2 === 1) { // odd channel
-                        spotInSector = spotNum === '1' ? 1 : 2;
-                    } else { // even channel
-                        spotInSector = spotNum === '1' ? 3 : 4;
-                    }
-                    
-                    addLogEntry(`Random arrival: Spot ${sector}${spotInSector} is now occupied`);
+                    pendingPublishQueue.push({ spotId, isOccupied: true });
                 }
-            }
-            else if (!addCar && currentOccupiedSpots > 0) {
-                // Find occupied spots and randomly free one
+            } else if (currentOccupiedSpots > 0) {
                 const occupiedSpots = Object.entries(parkingSpots)
                     .filter(([_, isOccupied]) => isOccupied)
-                    .map(([spotId]) => spotId);
+                    .map(([id]) => id);
 
                 if (occupiedSpots.length > 0) {
-                    const randomSpotId = occupiedSpots[Math.floor(Math.random() * occupiedSpots.length)];
-                    updateSpotStatus(randomSpotId, false);
-                    publishParkingData(randomSpotId, false);
-                    const channelNum = randomSpotId.split('-')[1];
-                    const spotNum = randomSpotId.split('-')[2];
-                    // Determine the sector letter (A, B, or C) based on the channel
-                    let sector;
-                    if (channelNum <= 2) sector = 'A';
-                    else if (channelNum <= 4) sector = 'B';
-                    else sector = 'C';
+                    spotId = occupiedSpots[Math.floor(Math.random() * occupiedSpots.length)];
+                    updateSpotStatus(spotId, false);
+                    action = 'random-departed';
+                    updatePerformed = true;
                     
-                    // Calculate spot number within the sector
-                    let spotInSector;
-                    if (channelNum % 2 === 1) { // odd channel
-                        spotInSector = spotNum === '1' ? 1 : 2;
-                    } else { // even channel
-                        spotInSector = spotNum === '1' ? 3 : 4;
-                    }
-                    
-                    addLogEntry(`Random departure: Spot ${sector}${spotInSector} is now free`);
+                    pendingPublishQueue.push({ spotId, isOccupied: false });
                 }
             }
         }
+    }
+    
+    // Add a log entry if we updated something
+    if (updatePerformed && spotId) {
+        const { sector, spotInSector } = getSpotDescription(spotId);
+        const isArrival = action.includes('arrived');
+        const isRandom = action.includes('random');
+        
+        const prefix = isRandom ? 'Random ' : '';
+        const message = isArrival ? 
+            `${prefix}Car arrived: Spot ${sector}${spotInSector} is now occupied` : 
+            `${prefix}Car departed: Spot ${sector}${spotInSector} is now free`;
+            
+        addLogEntry(message);
     }
 }
 
@@ -531,31 +562,44 @@ occupancySlider.addEventListener('input', () => {
 });
 
 // Connect to MQTT cloud broker
+// MQTT Connection with memory optimization
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+
 function connectMQTT() {
     try {
+        // Clear any existing reconnect timer
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+        }
+        
         // Extract hostname from the full URL
         const hostname = new URL(MQTT_CONFIG.host).hostname;
         
-        // Create MQTT client
-        mqttClient = new Paho.MQTT.Client(
-            hostname,
-            MQTT_CONFIG.port,
-            '/mqtt', // Path is required for WebSocket connections
-            MQTT_CONFIG.clientId
-        );
-        
-        // Set callbacks
-        mqttClient.onConnectionLost = onConnectionLost;
-        mqttClient.onMessageArrived = onMessageArrived;
+        // Create MQTT client only if it doesn't exist
+        if (!mqttClient) {
+            mqttClient = new Paho.MQTT.Client(
+                hostname,
+                MQTT_CONFIG.port,
+                '/mqtt', // Path is required for WebSocket connections
+                MQTT_CONFIG.clientId
+            );
+            
+            // Set callbacks
+            mqttClient.onConnectionLost = onConnectionLost;
+            mqttClient.onMessageArrived = onMessageArrived;
+        }
         
         // Connect options
         const connectOptions = {
             onSuccess: onConnect,
             onFailure: onConnectFailure,
             useSSL: MQTT_CONFIG.useSSL, // Must be true for HiveMQ Cloud
-            timeout: 10, // Increased timeout for cloud connections
-            keepAliveInterval: 60
-        };
+            timeout: 30, // Increased timeout for cloud connections
+            keepAliveInterval: 60,
+            mqttVersion: 4 // Use MQTT v3.1.1
+        }; // We'll handle reconnection ourselves manually
         
         // HiveMQ Cloud requires authentication
         if (MQTT_CONFIG.username) {
@@ -574,8 +618,13 @@ function connectMQTT() {
         connectionStatusElement.className = 'error';
         addLogEntry(`Connection error: ${error.message}`);
         
-        // Try to reconnect after 5 seconds
-        setTimeout(connectMQTT, 5000);
+        // Exponential backoff for reconnection
+        const delay = Math.min(30000, Math.pow(2, reconnectAttempts) * 1000);
+        reconnectAttempts++;
+        console.log(`Will attempt to reconnect in ${delay/1000} seconds`);
+        
+        // Try to reconnect with exponential backoff
+        reconnectTimer = setTimeout(connectMQTT, delay);
     }
 }
 

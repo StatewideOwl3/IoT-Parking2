@@ -14,7 +14,7 @@ const char* mqtt_server = "f68a0a1321584a169cd42818b2fcad8a.s2.eu.hivemq.cloud";
 const int mqtt_port = 8883;           // Secure MQTT port (not WebSocket)
 const char* mqtt_username = "team35"; // EDIT: Replace with your HiveMQ username
 const char* mqtt_password = "Team35_Admin"; // EDIT: Replace with your HiveMQ password
-const char* mqtt_client_id = "ESP32_ParkingSystem"; // Should be unique
+const char* mqtt_client_id = "ESP32_Parking_System"; // Should be unique
 
 // MQTT Topics - one topic per sensor pair
 const char* mqtt_topics[6] = {
