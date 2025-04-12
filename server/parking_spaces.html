@@ -8,37 +8,114 @@
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
     <style>
+        /* Parking spots layout */
         .parking-spots { 
             display: flex; 
             gap: 20px; 
             flex-wrap: wrap; 
             padding: 20px; 
             justify-content: center;
+            background-color: var(--white);
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
         }
+        
         .parking-spot-container { 
             background: white; 
             padding: 15px; 
             border-radius: 15px; 
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            width: calc(33.33% - 40px);
-            min-width: 250px;
+            width: calc(25% - 30px);
+            min-width: 200px;
+            transition: all 0.3s ease;
         }
+        
+        .parking-spot-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        
+        /* Add hover effect but prevent clicking interaction */
+        .stats-summary {
+            display: flex;
+            justify-content: space-around;
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 25px;
+            background-color: var(--light);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .stat-item i {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+        
+        .stat-item span {
+            color: var(--dark);
+        }
+        
+        .stat-item strong {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
         .parking-spot { 
             padding: 20px 30px; 
             border: none; 
             border-radius: 12px; 
             font-size: 18px; 
-            cursor: default; 
+            cursor: default; /* Changed from pointer to default */ 
             margin-bottom: 15px; 
             width: 100%; 
             text-align: center;
+            position: relative;
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
         }
-        .spot-details { margin-top: 15px; }
-        .spot-details p { margin: 8px 0; color: #666; font-size: 14px; }
-        .spot-details span { font-weight: bold; }
-        .available { background-color: var(--success); color: var(--white); }
-        .occupied { background-color: var(--danger); color: var(--white); }
+        
+        .spot-details { 
+            margin-top: 15px; 
+        }
+        
+        .spot-details p { 
+            margin: 8px 0; 
+            color: #666; 
+            font-size: 14px; 
+        }
+        
+        .spot-details span { 
+            font-weight: bold; 
+        }
+        
+        .spot-label {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
         .sector-title {
             width: 100%;
             text-align: left;
@@ -47,6 +124,78 @@
             color: #333;
             padding: 10px;
             border-bottom: 2px solid #eee;
+        }
+        
+        .available { 
+            background-color: var(--success); 
+            color: var(--white); 
+        }
+        
+        .occupied { 
+            background-color: var(--danger); 
+            color: var(--white); 
+        }
+        
+        .parking-spot i {
+            font-size: 24px;
+            opacity: 0.8;
+        }
+        
+        .parking-spot.status-change {
+            animation: pulse 0.5s ease-out;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Slider progress styling */
+        .slider-container {
+            position: relative;
+            width: 200px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .slider-progress {
+            position: absolute;
+            left: 0;
+            top: 7px;
+            height: 6px;
+            background-color: var(--primary);
+            border-radius: 3px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        input[type="range"] {
+            width: 200px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--light);
+            border-radius: 3px;
+            outline: none;
+            position: relative;
+            z-index: 1;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
         }
     </style>
 </head>
@@ -94,13 +243,30 @@
         </div>
     </div>
 
+    <!-- Simple Stats Display -->
+    <div class="stats-summary">
+        <div class="stat-item">
+            <i class="fas fa-car-side"></i>
+            <span>Total Spaces: <strong>12</strong></span>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-check-circle"></i>
+            <span>Available: <strong id="available-count">12</strong></span>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-times-circle"></i>
+            <span>Occupied: <strong id="occupied-count">0</strong></span>
+        </div>
+    </div>
+
     <div class="parking-spots">
-        <h2 class="sector-title">Sector A - Row 1</h2>
+        <h2 class="sector-title">Sector A</h2>
         
-        <!-- Parking Spot 1 -->
+        <!-- Sector A - 4 spots -->
         <div class="parking-spot-container">
             <div id="spot-1-1" class="parking-spot available">
-                Spot A1
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot A1</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-1-1-status">FREE</span></p>
@@ -108,10 +274,10 @@
             </div>
         </div>
         
-        <!-- Parking Spot 2 -->
         <div class="parking-spot-container">
             <div id="spot-1-2" class="parking-spot available">
-                Spot A2
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot A2</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-1-2-status">FREE</span></p>
@@ -119,10 +285,10 @@
             </div>
         </div>
         
-        <!-- Parking Spot 3 -->
         <div class="parking-spot-container">
             <div id="spot-2-1" class="parking-spot available">
-                Spot A3
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot A3</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-2-1-status">FREE</span></p>
@@ -130,10 +296,10 @@
             </div>
         </div>
         
-        <!-- Parking Spot 4 -->
         <div class="parking-spot-container">
             <div id="spot-2-2" class="parking-spot available">
-                Spot A4
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot A4</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-2-2-status">FREE</span></p>
@@ -141,12 +307,13 @@
             </div>
         </div>
         
-        <h2 class="sector-title">Sector A - Row 2</h2>
+        <h2 class="sector-title">Sector B</h2>
         
-        <!-- Parking Spot 5 -->
+        <!-- Sector B - 4 spots -->
         <div class="parking-spot-container">
             <div id="spot-3-1" class="parking-spot available">
-                Spot A5
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot B1</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-3-1-status">FREE</span></p>
@@ -154,10 +321,10 @@
             </div>
         </div>
         
-        <!-- Parking Spot 6 -->
         <div class="parking-spot-container">
             <div id="spot-3-2" class="parking-spot available">
-                Spot A6
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot B2</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-3-2-status">FREE</span></p>
@@ -165,10 +332,10 @@
             </div>
         </div>
         
-        <!-- Parking Spot 7 -->
         <div class="parking-spot-container">
             <div id="spot-4-1" class="parking-spot available">
-                Spot A7
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot B3</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-4-1-status">FREE</span></p>
@@ -176,10 +343,10 @@
             </div>
         </div>
         
-        <!-- Parking Spot 8 -->
         <div class="parking-spot-container">
             <div id="spot-4-2" class="parking-spot available">
-                Spot A8
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot B4</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-4-2-status">FREE</span></p>
@@ -187,12 +354,13 @@
             </div>
         </div>
         
-        <h2 class="sector-title">Sector B</h2>
+        <h2 class="sector-title">Sector C</h2>
         
-        <!-- Parking Spot 9 -->
+        <!-- Sector C - 4 spots -->
         <div class="parking-spot-container">
             <div id="spot-5-1" class="parking-spot available">
-                Spot B1
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot C1</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-5-1-status">FREE</span></p>
@@ -200,10 +368,10 @@
             </div>
         </div>
         
-        <!-- Parking Spot 10 -->
         <div class="parking-spot-container">
             <div id="spot-5-2" class="parking-spot available">
-                Spot B2
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot C2</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-5-2-status">FREE</span></p>
@@ -211,10 +379,10 @@
             </div>
         </div>
         
-        <!-- Parking Spot 11 -->
         <div class="parking-spot-container">
             <div id="spot-6-1" class="parking-spot available">
-                Spot B3
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot C3</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-6-1-status">FREE</span></p>
@@ -222,10 +390,10 @@
             </div>
         </div>
         
-        <!-- Parking Spot 12 -->
         <div class="parking-spot-container">
             <div id="spot-6-2" class="parking-spot available">
-                Spot B4
+                <i class="fas fa-car"></i>
+                <div class="spot-label">Spot C4</div>
             </div>
             <div class="spot-details">
                 <p>Status: <span id="spot-6-2-status">FREE</span></p>

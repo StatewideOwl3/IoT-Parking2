@@ -1,25 +1,92 @@
-// MQTT Configuration
+// MQTT Cloud Configuration
 const MQTT_CONFIG = {
-    host: "ws://172.20.10.2:9001/mqtt", // CHANGE THIS to your MQTT broker IP or hostname
-    port: 9001,               // WebSocket port (typically 9001, not the same as MQTT 1883)
-    username: '',             // Leave empty if not using authentication
-    password: '',             // Leave empty if not using authentication
-    clientId: 'WebClient_' + Math.random().toString(16).substr(2, 8),
+    // ===== REPLACE THESE VALUES WITH YOUR HIVEMQ CLOUD CREDENTIALS =====
+    host: "wss://f68a0a1321584a169cd42818b2fcad8a.s2.eu.hivemq.cloud:8884/mqtt", // Replace CLUSTER-ID with your HiveMQ cluster ID
+    port: 8884,               // WebSocket secure port
+    username: 'team35',// Replace with your HiveMQ username
+    password: 'Team35_Admin',// Replace with your HiveMQ password
+    // ================================================================
+    
+    clientId: 'ParkingDashboard_' + Math.random().toString(16).substr(2, 8),
     topics: [
         'parking/sensor1',
         'parking/sensor2',
         'parking/sensor3',
         'parking/sensor4',
         'parking/sensor5',
-        'parking/sensor6'
+        'parking/sensor6',
+        'parking/sensor1/spot1',
+        'parking/sensor1/spot2',
+        'parking/sensor2/spot1',
+        'parking/sensor2/spot2',
+        'parking/sensor3/spot1',
+        'parking/sensor3/spot2',
+        'parking/sensor4/spot1',
+        'parking/sensor4/spot2',
+        'parking/sensor5/spot1',
+        'parking/sensor5/spot2',
+        'parking/sensor6/spot1',
+        'parking/sensor6/spot2'
     ],
-    path:'/mqtt',
-    useSSL: false, // Set to true if using SSL
+    path: '/mqtt',
+    useSSL: true, // Required for HiveMQ Cloud
     reconnectTimeout: 5000
 };
 
+// Helper functions for localStorage persistence (for this page only)
+function saveParkingData(data) {
+    localStorage.setItem('mainPageData', JSON.stringify(data));
+}
+
+function loadParkingData() {
+    const stored = localStorage.getItem('mainPageData');
+    if (stored) {
+        try {
+            return JSON.parse(stored);
+        } catch (e) {
+            console.error('Error parsing stored parking data:', e);
+            return null;
+        }
+    }
+    return null;
+}
+
+// Helper to save timeline events
+function saveTimelineEvents(events) {
+    localStorage.setItem('mainPageTimelineEvents', JSON.stringify(events));
+}
+
+function loadTimelineEvents() {
+    const stored = localStorage.getItem('mainPageTimelineEvents');
+    if (stored) {
+        try {
+            // Convert ISO date strings back to Date objects
+            return JSON.parse(stored, (key, value) => {
+                if (key === 'time' && typeof value === 'string') {
+                    return new Date(value);
+                }
+                return value;
+            });
+        } catch (e) {
+            console.error('Error parsing stored timeline events:', e);
+            return [];
+        }
+    }
+    return [];
+}
+
+// Save/load historical data
+function saveHistoricalData(data) {
+    localStorage.setItem('mainPageHistoricalData', JSON.stringify(data));
+}
+
+function loadHistoricalData() {
+    const stored = localStorage.getItem('mainPageHistoricalData');
+    return stored ? JSON.parse(stored) : { timestamps: [], occupancy: [] };
+}
+
 // Global variables to store parking data
-let parkingData = {
+let parkingData = loadParkingData() || {
     total: 12,  // Total number of parking spots (6 modules × 2 spots per module)
     sensors: [], // Will hold data for all sensors
     totalParkingsToday: 0,
@@ -27,19 +94,25 @@ let parkingData = {
     lastUpdate: null,
 };
 
-// Initialize empty data structure for all sensors
-for (let i = 0; i < 6; i++) {
-    parkingData.sensors.push({
-        id: i + 1,
-        spot1: 0,
-        spot2: 0,
-        lastChanged1: null,
-        lastChanged2: null
-    });
+// Initialize sensors if they're not in stored data
+if (!parkingData.sensors || parkingData.sensors.length === 0) {
+    parkingData.sensors = [];
+    for (let i = 0; i < 6; i++) {
+        parkingData.sensors.push({
+            id: i + 1,
+            spot1: 0,
+            spot2: 0,
+            lastChanged1: null,
+            lastChanged2: null
+        });
+    }
 }
 
-// Keep track of historical data for charts
-const historicalData = {
+// Load timeline events from localStorage
+parkingData.timelineEvents = loadTimelineEvents() || [];
+
+// Keep track of historical data for charts - load from localStorage if available
+const historicalData = loadHistoricalData() || {
     timestamps: [],
     occupancy: []
 };
@@ -49,22 +122,42 @@ let client = null;
 
 // Initialize the dashboard
 function initDashboard() {
+    // Connect to MQTT
     client = connectMQTT();
+    
+    // Initial UI updates
     updateParkingStats();
     updateTrafficChart();
+    
+    // Set up regular update intervals
     setInterval(updateParkingStats, 1000); // Update every second based on most recent MQTT data
     setInterval(updateTrafficChart, 15000); // Update charts less frequently
+    
+    // Check MQTT connection status and attempt reconnection if needed
+    setInterval(function() {
+        if (!client || !client.isConnected()) {
+            console.log("MQTT connection not active, attempting reconnection...");
+            client = connectMQTT();
+        } else {
+            console.log("MQTT connection is active. Connection status:", client.isConnected());
+        }
+    }, 10000); // Check every 10 seconds
+    
+    // Periodically save data for page refresh persistence
+    setInterval(function() {
+        saveParkingData(parkingData);
+        saveTimelineEvents(parkingData.timelineEvents);
+        saveHistoricalData(historicalData);
+    }, 10000); // Every 10 seconds
 }
 
 function connectMQTT() {
     try {
-        console.log("Connecting to MQTT broker...");
+        console.log("Connecting to MQTT cloud broker...");
 
-        // Parse the host URL properly
-        const hostUrl = new URL(MQTT_CONFIG.host);
-        
+        // Create a client instance
         const client = new Paho.MQTT.Client(
-            hostUrl.hostname,
+            new URL(MQTT_CONFIG.host).hostname,
             Number(MQTT_CONFIG.port),
             MQTT_CONFIG.path,
             MQTT_CONFIG.clientId
@@ -76,26 +169,29 @@ function connectMQTT() {
 
         const options = {
             timeout: 30, // Increased timeout
-            useSSL: MQTT_CONFIG.useSSL,
+            useSSL: MQTT_CONFIG.useSSL, // Must be true for HiveMQ Cloud
             keepAliveInterval: 60, // Increased keep alive
             cleanSession: true,
             onSuccess: () => {
-                console.log("MQTT Connected!");
+                console.log("MQTT Cloud Connected!");
                 updateConnectionStatus(true);
                 // Subscribe to topics after successful connection
                 MQTT_CONFIG.topics.forEach(topic => {
                     console.log("Subscribing to:", topic);
                     client.subscribe(topic);
                 });
+                displayConnectionInfo('Connected to MQTT Cloud');
             },
             onFailure: (err) => {
                 console.error("MQTT Connection failed:", err);
                 updateConnectionStatus(false);
+                displayConnectionInfo('Failed to connect: ' + err.errorMessage);
                 // Try to reconnect after 5 seconds
                 setTimeout(() => connectMQTT(), MQTT_CONFIG.reconnectTimeout);
             }
         };
 
+        // Required for HiveMQ Cloud authentication
         if (MQTT_CONFIG.username) {
             options.userName = MQTT_CONFIG.username;
             options.password = MQTT_CONFIG.password;
@@ -107,6 +203,7 @@ function connectMQTT() {
                 client.connect(options);
             } catch (err) {
                 console.error("Connection attempt failed:", err);
+                displayConnectionInfo('Connection attempt failed');
                 setTimeout(connect, MQTT_CONFIG.reconnectTimeout);
             }
         };
@@ -117,9 +214,25 @@ function connectMQTT() {
     } catch (error) {
         console.error("MQTT setup error:", error);
         updateConnectionStatus(false);
+        displayConnectionInfo('MQTT setup error: ' + error.message);
         // Try to reconnect after 5 seconds
         setTimeout(() => connectMQTT(), MQTT_CONFIG.reconnectTimeout);
         return null;
+    }
+}
+
+// Display connection information on the dashboard
+function displayConnectionInfo(message) {
+    const infoElement = document.getElementById('connection-info');
+    if (infoElement) {
+        infoElement.textContent = message;
+    } else {
+        // Create an info element if it doesn't exist
+        const infoDiv = document.createElement('div');
+        infoDiv.id = 'connection-info';
+        infoDiv.className = 'connection-info';
+        infoDiv.textContent = message;
+        document.querySelector('.welcome-section').appendChild(infoDiv);
     }
 }
 
@@ -153,22 +266,43 @@ function onConnectionLost(responseObject) {
         updateConnectionStatus(false);
         
         // Try to reconnect after 5 seconds
-        setTimeout(connectMQTT, MQTT_CONFIG.reconnectTimeout);
+        setTimeout(function() {
+            console.log("Attempting to reconnect to MQTT...");
+            client = connectMQTT();
+        }, MQTT_CONFIG.reconnectTimeout);
+        
+        // Immediately fall back to ThingSpeak
+        fetchThingSpeakData();
     }
 }
 
 // Called when a message arrives
+// Enhanced logging for debugging the connection
+function logConnectionStatus() {
+    if (client) {
+        console.log(`MQTT Client Status: ${client.isConnected() ? 'Connected' : 'Disconnected'}`);
+    } else {
+        console.log('MQTT Client not initialized');
+    }
+}
+
 function onMessageArrived(message) {
-    // Parse the message payload (JSON format from ESP32)
+    // Parse the message payload
     try {
-        const payload = JSON.parse(message.payloadString);
-        const sensorId = payload.sensorId;
         const topic = message.destinationName;
+        console.log(`Message received on ${topic}:`, message.payloadString);
         
-        console.log(`Message received on ${topic}:`, payload);
+        const payload = JSON.parse(message.payloadString);
         
-        // Update sensor data
-        if (sensorId >= 1 && sensorId <= 6) {
+        // Enhanced logging for debugging
+        console.log('Message topic:', topic);
+        console.log('Message payload:', payload);
+        
+        // Handle different message formats
+        
+        // 1. Handle direct payload from ESP32 with sensorId, spot1, spot2
+        if (payload.sensorId && payload.sensorId >= 1 && payload.sensorId <= 6) {
+            const sensorId = payload.sensorId;
             const sensorIndex = sensorId - 1;
             const sensor = parkingData.sensors[sensorIndex];
             
@@ -177,89 +311,164 @@ function onMessageArrived(message) {
             const spot2Changed = sensor.spot2 !== payload.spot2;
             
             // Update the data
-            sensor.spot1 = payload.spot1;
-            sensor.spot2 = payload.spot2;
+            if (payload.spot1 !== undefined) sensor.spot1 = payload.spot1;
+            if (payload.spot2 !== undefined) sensor.spot2 = payload.spot2;
             
-            // Track state changes for timeline
-            const currentTime = new Date();
-            
-            if (spot1Changed) {
-                sensor.lastChanged1 = currentTime;
+            processSpotChanges(sensorId, spot1Changed, spot2Changed, sensor.spot1, sensor.spot2);
+        }
+        // 2. Handle simulation format with spot_id
+        else if (payload.spot_id) {
+            const spotIdParts = payload.spot_id.split('-');
+            if (spotIdParts.length === 3) {
+                const sensorNumber = parseInt(spotIdParts[1]);
+                const spotNumber = parseInt(spotIdParts[2]);
                 
-                // If spot became occupied (car parked)
-                if (payload.spot1 === 1) {
-                    parkingData.totalParkingsToday++;
-                    // Add to timeline
-                    parkingData.timelineEvents.push({
-                        time: currentTime,
-                        type: 'parked',
-                        spot: `Sensor ${sensorId}, Spot 1`
-                    });
-                } else {
-                    // Add car leaving to timeline
-                    parkingData.timelineEvents.push({
-                        time: currentTime,
-                        type: 'left',
-                        spot: `Sensor ${sensorId}, Spot 1`
-                    });
+                if (sensorNumber >= 1 && sensorNumber <= 6 && (spotNumber === 1 || spotNumber === 2)) {
+                    const sensorIndex = sensorNumber - 1;
+                    const sensor = parkingData.sensors[sensorIndex];
+                    
+                    // Update specific spot
+                    const newStatus = payload.status === 1 ? 1 : 0;
+                    
+                    // Track if this is a change
+                    let spot1Changed = false;
+                    let spot2Changed = false;
+                    
+                    if (spotNumber === 1) {
+                        spot1Changed = sensor.spot1 !== newStatus;
+                        sensor.spot1 = newStatus;
+                    } else {
+                        spot2Changed = sensor.spot2 !== newStatus;
+                        sensor.spot2 = newStatus;
+                    }
+                    
+                    processSpotChanges(sensorNumber, spot1Changed, spot2Changed, sensor.spot1, sensor.spot2);
                 }
             }
-            
-            if (spot2Changed) {
-                sensor.lastChanged2 = currentTime;
+        }
+        // 3. Handle topic-based messages: parking/sensor1/spot2
+        else if (topic.includes('/')) {
+            const topicParts = topic.split('/');
+            if (topicParts.length === 3 && topicParts[0] === 'parking') {
+                const sensorPart = topicParts[1];
+                const spotPart = topicParts[2];
                 
-                // If spot became occupied (car parked)
-                if (payload.spot2 === 1) {
-                    parkingData.totalParkingsToday++;
-                    // Add to timeline
-                    parkingData.timelineEvents.push({
-                        time: currentTime,
-                        type: 'parked',
-                        spot: `Sensor ${sensorId}, Spot 2`
-                    });
-                } else {
-                    // Add car leaving to timeline
-                    parkingData.timelineEvents.push({
-                        time: currentTime,
-                        type: 'left',
-                        spot: `Sensor ${sensorId}, Spot 2`
-                    });
+                const sensorNumber = parseInt(sensorPart.replace('sensor', ''));
+                const spotNumber = parseInt(spotPart.replace('spot', ''));
+                
+                if (sensorNumber >= 1 && sensorNumber <= 6 && (spotNumber === 1 || spotNumber === 2)) {
+                    const sensorIndex = sensorNumber - 1;
+                    const sensor = parkingData.sensors[sensorIndex];
+                    
+                    // Determine new status
+                    const newStatus = payload.status !== undefined ? (payload.status === 1 ? 1 : 0) : 1;
+                    
+                    // Track if this is a change
+                    let spot1Changed = false;
+                    let spot2Changed = false;
+                    
+                    if (spotNumber === 1) {
+                        spot1Changed = sensor.spot1 !== newStatus;
+                        sensor.spot1 = newStatus;
+                    } else {
+                        spot2Changed = sensor.spot2 !== newStatus;
+                        sensor.spot2 = newStatus;
+                    }
+                    
+                    processSpotChanges(sensorNumber, spot1Changed, spot2Changed, sensor.spot1, sensor.spot2);
                 }
             }
-            
-            // Record timestamp for chart data (once per minute)
-            const minuteTimestamp = new Date(currentTime);
-            minuteTimestamp.setSeconds(0, 0); // Round to the minute
-            const timestampString = minuteTimestamp.toISOString();
-            
-            // Only add new data point if it's a new minute or we have no data
-            if (historicalData.timestamps.length === 0 || 
-                historicalData.timestamps[historicalData.timestamps.length - 1] !== timestampString) {
-                
-                // Calculate current occupancy
-                const occupiedSpots = calculateOccupiedSpots();
-                const occupancyRate = (occupiedSpots / parkingData.total) * 100;
-                
-                // Add to historical data (limit to last 24 hours / 1440 minutes)
-                historicalData.timestamps.push(timestampString);
-                historicalData.occupancy.push(occupancyRate);
-                
-                // Keep only the last 1440 data points (24 hours)
-                if (historicalData.timestamps.length > 1440) {
-                    historicalData.timestamps.shift();
-                    historicalData.occupancy.shift();
-                }
-            }
-            
-            // Store last update time
-            parkingData.lastUpdate = currentTime;
-            
-            // Update the UI
-            updateParkingStats();
         }
     } catch (error) {
         console.error("Error processing MQTT message:", error);
     }
+}
+
+// Process spot changes (extracted common functionality)
+function processSpotChanges(sensorId, spot1Changed, spot2Changed, spot1Status, spot2Status) {
+    const currentTime = new Date();
+    
+    // Handle spot 1 changes
+    if (spot1Changed) {
+        parkingData.sensors[sensorId-1].lastChanged1 = currentTime;
+        
+        // If spot became occupied (car parked)
+        if (spot1Status === 1) {
+            parkingData.totalParkingsToday++;
+            // Add to timeline
+            parkingData.timelineEvents.push({
+                time: currentTime,
+                type: 'parked',
+                spot: `Sensor ${sensorId}, Spot 1`
+            });
+        } else {
+            // Add car leaving to timeline
+            parkingData.timelineEvents.push({
+                time: currentTime,
+                type: 'left',
+                spot: `Sensor ${sensorId}, Spot 1`
+            });
+        }
+    }
+    
+    // Handle spot 2 changes
+    if (spot2Changed) {
+        parkingData.sensors[sensorId-1].lastChanged2 = currentTime;
+        
+        // If spot became occupied (car parked)
+        if (spot2Status === 1) {
+            parkingData.totalParkingsToday++;
+            // Add to timeline
+            parkingData.timelineEvents.push({
+                time: currentTime,
+                type: 'parked',
+                spot: `Sensor ${sensorId}, Spot 2`
+            });
+        } else {
+            // Add car leaving to timeline
+            parkingData.timelineEvents.push({
+                time: currentTime,
+                type: 'left',
+                spot: `Sensor ${sensorId}, Spot 2`
+            });
+        }
+    }
+    
+    // Record timestamp for chart data (once per minute)
+    const minuteTimestamp = new Date(currentTime);
+    minuteTimestamp.setSeconds(0, 0); // Round to the minute
+    const timestampString = minuteTimestamp.toISOString();
+    
+    // Only add new data point if it's a new minute or we have no data
+    if (historicalData.timestamps.length === 0 || 
+        historicalData.timestamps[historicalData.timestamps.length - 1] !== timestampString) {
+        
+        // Calculate current occupancy
+        const occupiedSpots = calculateOccupiedSpots();
+        const occupancyRate = (occupiedSpots / parkingData.total) * 100;
+        
+        // Add to historical data (limit to last 24 hours / 1440 minutes)
+        historicalData.timestamps.push(timestampString);
+        historicalData.occupancy.push(occupancyRate);
+        
+        // Keep only the last 1440 data points (24 hours)
+        if (historicalData.timestamps.length > 1440) {
+            historicalData.timestamps.shift();
+            historicalData.occupancy.shift();
+        }
+        
+        // Save historical data
+        saveHistoricalData(historicalData);
+    }
+    
+    // Store last update time
+    parkingData.lastUpdate = currentTime;
+    
+    // Save the parking data to localStorage for persistence
+    saveParkingData(parkingData);
+    
+    // Update the UI
+    updateParkingStats();
 }
 
 // Update connection status in UI
@@ -294,10 +503,22 @@ function updateParkingStats() {
     // Update last updated time if data has been received
     if (parkingData.lastUpdate) {
         $('#last-updated').text(parkingData.lastUpdate.toLocaleString());
+    } else {
+        parkingData.lastUpdate = new Date(); // Set initial timestamp
+        $('#last-updated').text(parkingData.lastUpdate.toLocaleString());
     }
     
     // Update timeline with recent events
     updateTimeline();
+    
+    // Check if data is stale (no updates in the last 30 seconds)
+    const now = new Date();
+    if (parkingData.lastUpdate && (now - parkingData.lastUpdate) > 30000) {
+        console.log("Data appears stale, attempting to refresh...");
+        if (!client || !client.isConnected()) {
+            fetchThingSpeakData();
+        }
+    }
 }
 
 // Update the timeline display
@@ -608,10 +829,51 @@ function createParkingChart() {
     });
 }
 
+// Report connection issues to the user interface
+function reportConnectionIssue() {
+    console.log("MQTT connection unavailable");
+    updateConnectionStatus(false);
+    displayConnectionInfo('MQTT connection unavailable - attempting to reconnect');
+    
+    // Update UI to show we're waiting for a connection
+    $('#freeSpaces').text('--');
+    $('#occupiedSpaces').text('--');
+    $('#capacityStatus').text('Waiting for data...');
+    
+    // Try to reconnect to MQTT
+    setTimeout(() => {
+        if (!client || !client.isConnected()) {
+            client = connectMQTT();
+        }
+    }, 3000);
+}
+
+// Add refresh functionality to the button
+function setupRefreshButton() {
+    $('.premium-btn').on('click', function() {
+        console.log("Manual refresh requested");
+        
+        // First try MQTT if available
+        if (client && client.isConnected()) {
+            console.log("MQTT connected, waiting for updates");
+            // MQTT is push-based, so we just need to make sure we're connected
+        } else {
+            // Fall back to ThingSpeak
+            console.log("MQTT not connected, fetching from ThingSpeak");
+            fetchThingSpeakData();
+        }
+        
+        // Force UI updates
+        updateParkingStats();
+        updateTrafficChart();
+    });
+}
+
 // Initialize when document is ready
 $(document).ready(function() {
     initDashboard();
     createParkingChart();
+    setupRefreshButton();
     
     // Set up refresh button
     $('.premium-btn').on('click', function() {

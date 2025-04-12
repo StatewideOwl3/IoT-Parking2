@@ -7,39 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
-    <style>
-        .simulation-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding: 20px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
-        }
-
-        .control-group {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .control-group label {
-            font-weight: bold;
-        }
-
-        .control-group input[type="range"] {
-            width: 200px;
-        }
-
-        .log-container {
-            margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            height: 200px;
-            overflow-y: scroll;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
 </head>
 <body>
     <div class="sidebar">
@@ -82,12 +50,18 @@
             <div class="simulation-controls">
                 <div class="control-group">
                     <label for="simulation-speed">Simulation Speed:</label>
-                    <input type="range" id="simulation-speed" min="1" max="10" value="5">
+                    <div class="slider-container">
+                        <input type="range" id="simulation-speed" min="1" max="10" value="5">
+                        <div class="slider-progress" id="speed-progress" style="width: 44%"></div>
+                    </div>
                     <span id="speed-value">5</span>
                 </div>
                 <div class="control-group">
                     <label for="occupancy-rate">Occupancy Rate:</label>
-                    <input type="range" id="occupancy-rate" min="0" max="100" value="50">
+                    <div class="slider-container">
+                        <input type="range" id="occupancy-rate" min="0" max="100" value="50">
+                        <div class="slider-progress" id="occupancy-progress" style="width: 50%"></div>
+                    </div>
                     <span id="occupancy-value">50%</span>
                 </div>
                 <div class="control-group">
@@ -102,12 +76,155 @@
                     <label>Connection Status:</label>
                     <span id="connection-status" class="warning"><i class="fas fa-sync fa-spin"></i> Connecting...</span>
                 </div>
+            </div>
 
-            </div>
-            <div class="parking-area">
-            </div>
-            <div class="log-container" id="log-container">
+            <!-- Parking Spots Layout -->
+            <div class="parking-spots">
+                <h2 class="sector-title">Sector A</h2>
+                
+                <!-- Sector A - 4 spots -->
+                <div class="parking-spot-container">
+                    <div id="spot-1-1" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot A1</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-1-1-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-1-1-last-change">--</span></p>
+                    </div>
                 </div>
+                
+                <div class="parking-spot-container">
+                    <div id="spot-1-2" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot A2</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-1-2-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-1-2-last-change">--</span></p>
+                    </div>
+                </div>
+                
+                <div class="parking-spot-container">
+                    <div id="spot-2-1" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot A3</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-2-1-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-2-1-last-change">--</span></p>
+                    </div>
+                </div>
+                
+                <div class="parking-spot-container">
+                    <div id="spot-2-2" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot A4</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-2-2-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-2-2-last-change">--</span></p>
+                    </div>
+                </div>
+                
+                <h2 class="sector-title">Sector B</h2>
+                
+                <!-- Sector B - 4 spots -->
+                <div class="parking-spot-container">
+                    <div id="spot-3-1" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot B1</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-3-1-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-3-1-last-change">--</span></p>
+                    </div>
+                </div>
+                
+                <div class="parking-spot-container">
+                    <div id="spot-3-2" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot B2</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-3-2-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-3-2-last-change">--</span></p>
+                    </div>
+                </div>
+                
+                <div class="parking-spot-container">
+                    <div id="spot-4-1" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot B3</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-4-1-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-4-1-last-change">--</span></p>
+                    </div>
+                </div>
+                
+                <div class="parking-spot-container">
+                    <div id="spot-4-2" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot B4</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-4-2-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-4-2-last-change">--</span></p>
+                    </div>
+                </div>
+                
+                <h2 class="sector-title">Sector C</h2>
+                
+                <!-- Sector C - 4 spots -->
+                <div class="parking-spot-container">
+                    <div id="spot-5-1" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot C1</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-5-1-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-5-1-last-change">--</span></p>
+                    </div>
+                </div>
+                
+                <div class="parking-spot-container">
+                    <div id="spot-5-2" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot C2</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-5-2-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-5-2-last-change">--</span></p>
+                    </div>
+                </div>
+                
+                <div class="parking-spot-container">
+                    <div id="spot-6-1" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot C3</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-6-1-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-6-1-last-change">--</span></p>
+                    </div>
+                </div>
+                
+                <div class="parking-spot-container">
+                    <div id="spot-6-2" class="parking-spot available">
+                        <i class="fas fa-car"></i>
+                        <div class="spot-label">Spot C4</div>
+                    </div>
+                    <div class="spot-details">
+                        <p>Status: <span id="spot-6-2-status">FREE</span></p>
+                        <p>Last Change: <span id="spot-6-2-last-change">--</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="log-container" id="log-container">
+                <!-- Logs will be added here -->
+            </div>
         </div>
     </div>
     <script src="script.js"></script>

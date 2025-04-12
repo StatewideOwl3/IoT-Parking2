@@ -5,14 +5,15 @@
 #include <ArduinoJson.h> // For JSON formatting
 
 // ====== Wi-Fi Credentials ======
-const char* ssid = "iPhone";
-const char* password = "DXBTURFD";
+const char* ssid = "iPhone";           // EDIT: Replace with your WiFi SSID
+const char* password = "DXBTURFD";     // EDIT: Replace with your WiFi password
 
-// ====== MQTT Configuration ======
-const char* mqtt_server = "172.20.10.2"; // e.g. "192.168.1.100" or "broker.example.com"
-const int mqtt_port = 1883;
-const char* mqtt_username = ""; // Leave empty if not using authentication
-const char* mqtt_password = ""; // Leave empty if not using authentication
+// ====== MQTT Cloud Configuration ======
+// EDIT: Replace with your HiveMQ Cloud credentials
+const char* mqtt_server = "f68a0a1321584a169cd42818b2fcad8a.s2.eu.hivemq.cloud"; // Replace CLUSTER-ID with your HiveMQ Cluster ID
+const int mqtt_port = 8883;           // Secure MQTT port (not WebSocket)
+const char* mqtt_username = "team35"; // EDIT: Replace with your HiveMQ username
+const char* mqtt_password = "Team35_Admin"; // EDIT: Replace with your HiveMQ password
 const char* mqtt_client_id = "ESP32_ParkingSystem"; // Should be unique
 
 // MQTT Topics - one topic per sensor pair
@@ -44,8 +45,44 @@ SemaphoreHandle_t readingMutex;  // For safe access to readings across tasks
 TaskHandle_t irReadingTasks[6];
 TaskHandle_t mqttPublishTasks[6];
 
+// ====== HiveMQ Cloud Root CA Certificate ======
+// EDIT: You might need to update this certificate if it changes
+const char* root_ca = R"(
+-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----
+)";
+
 // WiFi and MQTT client initialization
-WiFiClient espClient;
+WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
 
 // ====== WiFi Setup ======
@@ -63,6 +100,10 @@ void connectToWiFi() {
 
 // ====== MQTT Setup and Reconnection ======
 void setupMQTT() {
+  // Set up SSL certificate for secure connection
+  espClient.setCACert(root_ca);
+  
+  // Set MQTT server and port
   mqttClient.setServer(mqtt_server, mqtt_port);
   
   // Optional callback for receiving messages
@@ -70,23 +111,43 @@ void setupMQTT() {
     // Handle incoming messages if needed
     Serial.print("Message received on topic: ");
     Serial.println(topic);
+    
+    // Print message payload
+    char message[length + 1];
+    memcpy(message, payload, length);
+    message[length] = '\0';
+    Serial.print("Message content: ");
+    Serial.println(message);
   });
+  
+  // Set buffer size for larger messages
+  mqttClient.setBufferSize(512);
 }
 
 bool reconnectMQTT() {
   if (!mqttClient.connected()) {
-    Serial.print("Attempting MQTT connection...");
+    Serial.print("Attempting MQTT Cloud connection...");
     
-    // Attempt to connect with authentication if provided
-    bool connected = false;
-    if (strlen(mqtt_username) > 0) {
-      connected = mqttClient.connect(mqtt_client_id, mqtt_username, mqtt_password);
-    } else {
-      connected = mqttClient.connect(mqtt_client_id);
-    }
+    // HiveMQ Cloud always requires authentication
+    bool connected = mqttClient.connect(mqtt_client_id, mqtt_username, mqtt_password);
     
     if (connected) {
-      Serial.println("connected!");
+      Serial.println("connected to HiveMQ Cloud!");
+      
+      // Subscribe to any command topics if needed
+      // mqttClient.subscribe("parking/commands");
+      
+      // Publish a connected status message
+      StaticJsonDocument<200> doc;
+      doc["device"] = mqtt_client_id;
+      doc["status"] = "connected";
+      doc["ip"] = WiFi.localIP().toString();
+      doc["uptime"] = millis();
+      
+      char buffer[256];
+      serializeJson(doc, buffer);
+      mqttClient.publish("parking/system/status", buffer);
+      
       return true;
     } else {
       Serial.print("failed, rc=");
@@ -193,6 +254,7 @@ void mqttPublishTask(void* parameter) {
     doc["spot1"] = spot1;
     doc["spot2"] = spot2;
     doc["timestamp"] = millis();
+    doc["device"] = mqtt_client_id;
     
     char jsonBuffer[200];
     serializeJson(doc, jsonBuffer);
@@ -201,13 +263,36 @@ void mqttPublishTask(void* parameter) {
     if (mqttClient.connected()) {
       bool published = mqttClient.publish(topic, jsonBuffer, true); // retained message
       
+      // Also publish to individual spot topics
+      char spot1Topic[50], spot2Topic[50];
+      sprintf(spot1Topic, "%s/spot1", topic);
+      sprintf(spot2Topic, "%s/spot2", topic);
+      
+      // Create and publish spot-specific messages
+      StaticJsonDocument<100> spot1Doc, spot2Doc;
+      spot1Doc["spot_id"] = String("spot-") + String(channelIndex+1) + String("-1");
+      spot1Doc["status"] = spot1;
+      spot1Doc["timestamp"] = millis();
+      
+      spot2Doc["spot_id"] = String("spot-") + String(channelIndex+1) + String("-2");
+      spot2Doc["status"] = spot2;
+      spot2Doc["timestamp"] = millis();
+      
+      char spot1Buffer[100], spot2Buffer[100];
+      serializeJson(spot1Doc, spot1Buffer);
+      serializeJson(spot2Doc, spot2Buffer);
+      
+      mqttClient.publish(spot1Topic, spot1Buffer, true);
+      mqttClient.publish(spot2Topic, spot2Buffer, true);
+      
       Serial.print("MQTT Publish to topic ");
       Serial.print(topic);
       Serial.print(": ");
       Serial.println(published ? "Success" : "Failed");
       Serial.println(jsonBuffer);
     } else {
-      Serial.println("MQTT Disconnected! Can't send data.");
+      Serial.println("MQTT Cloud Disconnected! Can't send data.");
+      reconnectMQTT(); // Try to reconnect
     }
   }
 }
