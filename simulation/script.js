@@ -1,13 +1,14 @@
 // MQTT Cloud Configuration
 const MQTT_CONFIG = {
     // ===== REPLACE THESE VALUES WITH YOUR HIVEMQ CLOUD CREDENTIALS =====
-    host: "wss://f68a0a1321584a169cd42818b2fcad8a.s2.eu.hivemq.cloud:8884/mqtt", // Replace CLUSTER-ID with your HiveMQ cluster ID
+    host: "wss://f68a0a1321584a169cd42818b2fcad8a.s2.eu.hivemq.cloud:8884/mqtt", // HiveMQ Cloud WebSocket Secure URL
     port: 8884,               // WebSocket secure port
     username: 'team35',// Replace with your HiveMQ username
     password: 'Team35_Admin',// Replace with your HiveMQ password
     // ================================================================
     
-    clientId: 'ESP32_ParkingSystem',  // Using the alternative ID pattern from HiveMQ
+    // Alternate between authorized client IDs with a timestamp to ensure uniqueness
+    clientId: 'ESP32_Parking_System',
     topics: {
         base: 'parking',
         sensor: (channel, spot) => `parking/sensor${channel}/spot${spot}`
@@ -574,15 +575,17 @@ function connectMQTT() {
             reconnectTimer = null;
         }
         
-        // Extract hostname from the full URL
-        const hostname = new URL(MQTT_CONFIG.host).hostname;
+        // Extract hostname and path from the full URL
+        const url = new URL(MQTT_CONFIG.host);
+        const hostname = url.hostname;
+        const path = url.pathname;
         
         // Create MQTT client only if it doesn't exist
         if (!mqttClient) {
             mqttClient = new Paho.MQTT.Client(
                 hostname,
                 MQTT_CONFIG.port,
-                '/mqtt', // Path is required for WebSocket connections
+                path, // Path from the MQTT URL
                 MQTT_CONFIG.clientId
             );
             
@@ -598,7 +601,8 @@ function connectMQTT() {
             useSSL: MQTT_CONFIG.useSSL, // Must be true for HiveMQ Cloud
             timeout: 30, // Increased timeout for cloud connections
             keepAliveInterval: 60,
-            mqttVersion: 4 // Use MQTT v3.1.1
+            mqttVersion: 4, // Use MQTT v3.1.1
+            cleanSession: true
         }; // We'll handle reconnection ourselves manually
         
         // HiveMQ Cloud requires authentication

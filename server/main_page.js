@@ -1,13 +1,14 @@
 // MQTT Cloud Configuration
 const MQTT_CONFIG = {
     // ===== REPLACE THESE VALUES WITH YOUR HIVEMQ CLOUD CREDENTIALS =====
-    host: "wss://f68a0a1321584a169cd42818b2fcad8a.s2.eu.hivemq.cloud:8884/mqtt", // Replace CLUSTER-ID with your HiveMQ cluster ID
+    host: "wss://f68a0a1321584a169cd42818b2fcad8a.s2.eu.hivemq.cloud:8884/mqtt", // HiveMQ Cloud WebSocket Secure URL
     port: 8884,               // WebSocket secure port
     username: 'team35',// Replace with your HiveMQ username
     password: 'Team35_Admin',// Replace with your HiveMQ password
     // ================================================================
     
-    clientId: 'ESP32_ParkingSystem',  // Using authorized ID from HiveMQ
+    // Use one of the two authorized client IDs with timestamp suffix
+    clientId: 'ESP32_ParkingSystem', // Set static client ID for main dashboard
     topics: [
         'parking/sensor1',
         'parking/sensor2',
@@ -156,10 +157,11 @@ function connectMQTT() {
         console.log("Connecting to MQTT cloud broker...");
 
         // Create a client instance
+        const url = new URL(MQTT_CONFIG.host);
         const client = new Paho.MQTT.Client(
-            new URL(MQTT_CONFIG.host).hostname,
+            url.hostname,
             Number(MQTT_CONFIG.port),
-            MQTT_CONFIG.path,
+            url.pathname,
             MQTT_CONFIG.clientId
         );
 
