@@ -3,12 +3,12 @@ const MQTT_CONFIG = {
     // ===== REPLACE THESE VALUES WITH YOUR HIVEMQ CLOUD CREDENTIALS =====
     host: "wss://f68a0a1321584a169cd42818b2fcad8a.s2.eu.hivemq.cloud:8884/mqtt", // HiveMQ Cloud WebSocket Secure URL
     port: 8884,               // WebSocket secure port
-    username: 'team35',// Replace with your HiveMQ username
-    password: 'Team35_Admin',// Replace with your HiveMQ password
+    username: 'team35',       // Replace with your HiveMQ username
+    password: 'Team35_Admin', // Replace with your HiveMQ password
     // ================================================================
     
-    // Use one of the two authorized client IDs with timestamp suffix
-    clientId: 'ESP32_ParkingSystem', // Set static client ID for parking spaces component
+    // Generate a unique client ID for parking spaces component
+    clientId: 'parking_spaces_' + Math.random().toString(16).substring(2, 10),
     topics: {
         base: 'parking',
         sensor: (channel, spot) => `parking/sensor${channel}/spot${spot}`
