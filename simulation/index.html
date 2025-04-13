@@ -82,35 +82,151 @@
                 </div>
             </div>
 
+            <div class="status-info">
+                <p>Status: <span id="api-status">Ready</span></p>
+                <p>Last Update: <span id="last-update">--</span></p>
+                <p>ThingSpeak Update: <span id="thingspeak-update-time">--</span></p>
+                <p>Next Update In: <span id="next-update-countdown">60</span> seconds</p>
+            </div>
+
             <div class="parking-layout">
                 <h2 class="section-title">Mall Parking Layout</h2>
-                <div class="entrance-exit">
-                    <div class="entrance">Entrance</div>
-                    <div class="exit">Exit</div>
-                </div>
-                <div class="parking-area">
-                    <div class="sector-a">
-                        <h3>Sector A</h3>
-                        <div class="row">
-                            <div id="spot-1-1" class="parking-spot" data-channel="1" data-field="1">Spot 1</div>
-                            <div id="spot-1-2" class="parking-spot" data-channel="1" data-field="2">Spot 2</div>
-                            <div id="spot-2-1" class="parking-spot" data-channel="2" data-field="1">Spot 3</div>
-                            <div id="spot-2-2" class="parking-spot" data-channel="2" data-field="2">Spot 4</div>
+                <p class="last-update">Last ThingSpeak update: <span id="thingspeak-update-display">--</span></p>
+
+                <!-- SECTOR A -->
+                <div class="sector">
+                    <div class="sector-title">
+                        <div class="title-text">
+                            <i class="fas fa-car"></i>
+                            <span>Sector A</span>
+                            <div class="sector-badge">A</div>
                         </div>
-                        <div class="row">
-                            <div id="spot-3-1" class="parking-spot" data-channel="3" data-field="1">Spot 5</div>
-                            <div id="spot-3-2" class="parking-spot" data-channel="3" data-field="2">Spot 6</div>
-                            <div id="spot-4-1" class="parking-spot" data-channel="4" data-field="1">Spot 7</div>
-                            <div id="spot-4-2" class="parking-spot" data-channel="4" data-field="2">Spot 8</div>
+                        <div class="sector-stats">4 spots</div>
+                    </div>
+                    
+                    <div class="sector-spots">
+                        <!-- Spot A1 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-1-1" class="parking-spot available" data-channel="1" data-field="1">
+                                <div class="spot-number">1</div>
+                                Parking Spot A1
+                            </div>
+                        </div>
+                        
+                        <!-- Spot A2 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-1-2" class="parking-spot available" data-channel="1" data-field="2">
+                                <div class="spot-number">2</div>
+                                Parking Spot A2
+                            </div>
+                        </div>
+                        
+                        <!-- Spot A3 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-2-1" class="parking-spot available" data-channel="2" data-field="1">
+                                <div class="spot-number">3</div>
+                                Parking Spot A3
+                            </div>
+                        </div>
+                        
+                        <!-- Spot A4 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-2-2" class="parking-spot available" data-channel="2" data-field="2">
+                                <div class="spot-number">4</div>
+                                Parking Spot A4
+                            </div>
                         </div>
                     </div>
-                    <div class="sector-b">
-                        <h3>Sector B</h3>
-                        <div class="row">
-                            <div id="spot-5-1" class="parking-spot" data-channel="5" data-field="1">Spot 9</div>
-                            <div id="spot-5-2" class="parking-spot" data-channel="5" data-field="2">Spot 10</div>
-                            <div id="spot-6-1" class="parking-spot" data-channel="6" data-field="1">Spot 11</div>
-                            <div id="spot-6-2" class="parking-spot" data-channel="6" data-field="2">Spot 12</div>
+                </div>
+                
+                <!-- SECTOR B -->
+                <div class="sector">
+                    <div class="sector-title">
+                        <div class="title-text">
+                            <i class="fas fa-car"></i>
+                            <span>Sector B</span>
+                            <div class="sector-badge">B</div>
+                        </div>
+                        <div class="sector-stats">4 spots</div>
+                    </div>
+                    
+                    <div class="sector-spots">
+                        <!-- Spot B1 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-3-1" class="parking-spot available" data-channel="3" data-field="1">
+                                <div class="spot-number">1</div>
+                                Parking Spot B1
+                            </div>
+                        </div>
+                        
+                        <!-- Spot B2 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-3-2" class="parking-spot available" data-channel="3" data-field="2">
+                                <div class="spot-number">2</div>
+                                Parking Spot B2
+                            </div>
+                        </div>
+                        
+                        <!-- Spot B3 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-4-1" class="parking-spot available" data-channel="4" data-field="1">
+                                <div class="spot-number">3</div>
+                                Parking Spot B3
+                            </div>
+                        </div>
+                        
+                        <!-- Spot B4 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-4-2" class="parking-spot available" data-channel="4" data-field="2">
+                                <div class="spot-number">4</div>
+                                Parking Spot B4
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SECTOR C -->
+                <div class="sector">
+                    <div class="sector-title">
+                        <div class="title-text">
+                            <i class="fas fa-car"></i>
+                            <span>Sector C</span>
+                            <div class="sector-badge">C</div>
+                        </div>
+                        <div class="sector-stats">4 spots</div>
+                    </div>
+                    
+                    <div class="sector-spots">
+                        <!-- Spot C1 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-5-1" class="parking-spot available" data-channel="5" data-field="1">
+                                <div class="spot-number">1</div>
+                                Parking Spot C1
+                            </div>
+                        </div>
+                        
+                        <!-- Spot C2 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-5-2" class="parking-spot available" data-channel="5" data-field="2">
+                                <div class="spot-number">2</div>
+                                Parking Spot C2
+                            </div>
+                        </div>
+                        
+                        <!-- Spot C3 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-6-1" class="parking-spot available" data-channel="6" data-field="1">
+                                <div class="spot-number">3</div>
+                                Parking Spot C3
+                            </div>
+                        </div>
+                        
+                        <!-- Spot C4 -->
+                        <div class="parking-spot-container">
+                            <div id="spot-6-2" class="parking-spot available" data-channel="6" data-field="2">
+                                <div class="spot-number">4</div>
+                                Parking Spot C4
+                            </div>
                         </div>
                     </div>
                 </div>

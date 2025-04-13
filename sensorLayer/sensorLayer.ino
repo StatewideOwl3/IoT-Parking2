@@ -9,6 +9,7 @@ const char* password = "DXBTURFD";
 
 // ====== ThingSpeak API Keys and Channels ======
 // Replace these with your actual API keys and channel IDs
+//THESE HAVE TO BE WRITE KEYS
 const char* apiKeys[6] = {
   "MH9PG5BKVZIYGW18", // Channel 1 API Key
   "FXNT93E2CGJZOXYZ",        // Channel 2 API Key

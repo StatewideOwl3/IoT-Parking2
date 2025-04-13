@@ -29,10 +29,31 @@
     <div class="premium-box">
         <h3>Click to refresh statistics</h3>
         <button class="premium-btn">Refresh</button>
+        <div class="last-update">
+            <div class="update-info">
+                <i class="fas fa-clock"></i>
+                <p>Last ThingSpeak update: <span id="last-update-time" class="highlight-time">--</span></p>
+            </div>
+            <div class="update-info">
+                <i class="fas fa-sync-alt"></i>
+                <p>Next update in: <span id="next-update-countdown" class="highlight-time">60</span> seconds</p>
+            </div>
+            <div class="sensor-status-container">
+                <div class="sensor-info">
+                    <i class="fas fa-wifi"></i>
+                    <p>ThingSpeak Status: <span id="thingspeak-status" class="status-active">Connected</span></p>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 <!-- Main Content -->
 <div class="main-content">
+    <header class="dashboard-header">
+        <h1>Parking Dashboard</h1>
+        <p class="subtitle">Real-time parking space monitoring</p>
+        <p class="sensor-status">IR Sensor Status: <span id="sensor-status-indicator" class="status-active">Active</span></p>
+    </header>
     <!-- Header -->
     <div class="header">
         <div class="welcome-section">
@@ -59,6 +80,62 @@
     <div class="dashboard-container">
         <!-- Main Dashboard Content -->
         <div class="dashboard-main">
+            <!-- IR Sensor Status -->
+            <div class="sensor-status-container">
+                <div class="sensor-panel">
+                    <h3>IR Sensor Status</h3>
+                    <div class="sensor-grid">
+                        <div class="sensor-item">
+                            <div class="sensor-icon"><i class="fas fa-satellite-dish"></i></div>
+                            <div class="sensor-details">
+                                <h4>IR Sensor 1</h4>
+                                <p>Sector A (Spots 1-2)</p>
+                                <p class="timestamp" id="channel-1-timestamp">--</p>
+                            </div>
+                        </div>
+                        <div class="sensor-item">
+                            <div class="sensor-icon"><i class="fas fa-satellite-dish"></i></div>
+                            <div class="sensor-details">
+                                <h4>IR Sensor 2</h4>
+                                <p>Sector A (Spots 3-4)</p>
+                                <p class="timestamp" id="channel-2-timestamp">--</p>
+                            </div>
+                        </div>
+                        <div class="sensor-item">
+                            <div class="sensor-icon"><i class="fas fa-satellite-dish"></i></div>
+                            <div class="sensor-details">
+                                <h4>IR Sensor 3</h4>
+                                <p>Sector B (Spots 1-2)</p>
+                                <p class="timestamp" id="channel-3-timestamp">--</p>
+                            </div>
+                        </div>
+                        <div class="sensor-item">
+                            <div class="sensor-icon"><i class="fas fa-satellite-dish"></i></div>
+                            <div class="sensor-details">
+                                <h4>IR Sensor 4</h4>
+                                <p>Sector B (Spots 3-4)</p>
+                                <p class="timestamp" id="channel-4-timestamp">--</p>
+                            </div>
+                        </div>
+                        <div class="sensor-item">
+                            <div class="sensor-icon"><i class="fas fa-satellite-dish"></i></div>
+                            <div class="sensor-details">
+                                <h4>IR Sensor 5</h4>
+                                <p>Sector C (Spots 1-2)</p>
+                                <p class="timestamp" id="channel-5-timestamp">--</p>
+                            </div>
+                        </div>
+                        <div class="sensor-item">
+                            <div class="sensor-icon"><i class="fas fa-satellite-dish"></i></div>
+                            <div class="sensor-details">
+                                <h4>IR Sensor 6</h4>
+                                <p>Sector C (Spots 3-4)</p>
+                                <p class="timestamp" id="channel-6-timestamp">--</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <!-- Transfer Cards -->
             <div class="transfer-cards">
                 <div class="transfer-card">
