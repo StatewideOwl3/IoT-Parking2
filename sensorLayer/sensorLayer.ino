@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <ESP32Servo.h>
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
 #include <WiFiClientSecure.h>
 
 // ====== Wi-Fi Credentials ======
@@ -47,7 +48,8 @@ const int LED_PIN_ROAD2 = 3;
 
 // Speed detection constants
 const float SENSOR_DISTANCE = 100.0;  // Distance between sensors in cm
-const float SPEED_LIMIT = 3.0;    // Speed limit in cm/s
+const float SPEED_LIMIT = 4.0;    // Speed limit in cm/s
+const int LED_FLASH_DURATION = 2000;  // LED flash duration in milliseconds
 const int BLINK_COUNT = 3;        // Number of times to blink LED
 const int BLINK_DELAY = 200;      // Delay between blinks in ms
 
@@ -56,8 +58,32 @@ const int SERVO_MOVE_TIME = 500;     // Time to allow servo to reach position
 const int IR_SAMPLES = 20;           // Number of samples to average
 const int IR_SAMPLE_DELAY = 50;      // Delay between samples
 
-// Create servo objects
-Servo servos[6];
+// Create servo driver object
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
+// Servo configuration
+#define SERVOMIN  125 // This is the 'minimum' pulse length count (out of 4096)
+#define SERVOMAX  575 // This is the 'maximum' pulse length count (out of 4096)
+#define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
+
+// Servo positions
+const int SERVO_CENTER = 90;      // Rest position
+const int SERVO_LEFT = 45;        // First spot position (90-45)
+const int SERVO_RIGHT = 135;      // Second spot position (90+45)
+
+// Servo to spot mapping
+// Servo 0 (Channel 0) -> Row 1, Spots A & B
+// Servo 1 (Channel 1) -> Row 1, Spots C & D
+// Servo 2 (Channel 2) -> Row 2, Spots A & B
+// Servo 3 (Channel 3) -> Row 2, Spots C & D
+// Servo 4 (Channel 4) -> Row 3, Spots A & B
+// Servo 5 (Channel 5) -> Row 3, Spots C & D
+
+// Function to convert angle to pulse length
+int angleToPulse(int angle) {
+  int pulse = map(angle, 0, 180, SERVOMIN, SERVOMAX);
+  return pulse;
+}
 
 // Reading variables
 volatile int spotReadings[6][2] = {{0}}; // [sensor][spot]
@@ -208,13 +234,10 @@ void monitorRoadSpeed(int trigPin, int echoPin, int ledPin) {
     float speed = abs(newDistance - prevDistance) / timeDiff;
     
     if (speed > SPEED_LIMIT) {
-      // Blink warning LED
-      for (int i = 0; i < BLINK_COUNT; i++) {
-        digitalWrite(ledPin, HIGH);
-        delay(BLINK_DELAY);
-        digitalWrite(ledPin, LOW);
-        delay(BLINK_DELAY);
-      }
+      // Flash LED for 2 seconds
+      digitalWrite(ledPin, HIGH);
+      delay(LED_FLASH_DURATION);
+      digitalWrite(ledPin, LOW);
       
       Serial.print("Speed violation detected on road: ");
       Serial.print(speed);
@@ -239,6 +262,12 @@ void speedMonitorTask(void* parameter) {
 void setup() {
   Serial.begin(115200);
   
+  // Initialize I2C and servo driver
+  Wire.begin();
+  pwm.begin();
+  pwm.setOscillatorFrequency(27000000);
+  pwm.setPWMFreq(SERVO_FREQ);
+  
   // Initialize IR sensor pins
   for (int i = 0; i < 6; i++) {
     pinMode(IR_SENSOR_PINS[i], INPUT);
@@ -254,12 +283,10 @@ void setup() {
   digitalWrite(LED_PIN_ROAD1, LOW);
   digitalWrite(LED_PIN_ROAD2, LOW);
 
-  // Initialize servo motors
+  // Initialize all servos to center position
   for (int i = 0; i < 6; i++) {
-    servos[i].setPeriodHertz(50);
-    servos[i].attach(SERVO_PINS[i]);
-    servos[i].write(90);  // start all servos at center position
-    delay(200); // Small delay between attaching servos
+    pwm.setPWM(i, 0, angleToPulse(SERVO_CENTER));
+    delay(200); // Small delay between initializing servos
   }
   
   delay(1000); // Allow servos to reach position
@@ -311,43 +338,43 @@ void loop() {
   // All servos at center position (90°) for 10 seconds
   Serial.println("=== ALL SERVOS AT CENTER POSITION (90°) ===");
   for (int i = 0; i < 6; i++) {
-    servos[i].write(90);
+    pwm.setPWM(i, 0, angleToPulse(SERVO_CENTER));
   }
   delay(10000); // 10 seconds at center
   
-  // All servos at Spot 1 position (0°) for 5 seconds
-  Serial.println("=== ALL SERVOS AT POSITION 0° - SCANNING SPOT 1 ===");
+  // All servos at Spot 1 position (135°) for 4 seconds
+  Serial.println("=== ALL SERVOS AT POSITION 135° - SCANNING FIRST SPOTS ===");
   for (int i = 0; i < 6; i++) {
-    servos[i].write(0);
+    pwm.setPWM(i, 0, angleToPulse(SERVO_RIGHT));
   }
   delay(100); // Short delay for servos to start moving
   
-  // Start all IR sensor reading tasks simultaneously for Spot 1
+  // Start all IR sensor reading tasks simultaneously for first spots
   for (int i = 0; i < 6; i++) {
     xTaskNotifyGive(irReadingTasks[i]);
   }
   
-  // Wait for 5 seconds for readings
-  delay(5000);
+  // Wait for 4 seconds for readings
+  delay(4000);
   
-  // All servos at Spot 2 position (180°) for 5 seconds
-  Serial.println("=== ALL SERVOS AT POSITION 180° - SCANNING SPOT 2 ===");
+  // All servos at Spot 2 position (45°) for 4 seconds
+  Serial.println("=== ALL SERVOS AT POSITION 45° - SCANNING SECOND SPOTS ===");
   for (int i = 0; i < 6; i++) {
-    servos[i].write(180);
+    pwm.setPWM(i, 0, angleToPulse(SERVO_LEFT));
   }
   delay(100); // Short delay for servos to start moving
   
-  // Start all IR sensor reading tasks simultaneously for Spot 2
+  // Start all IR sensor reading tasks simultaneously for second spots
   for (int i = 0; i < 6; i++) {
     xTaskNotifyGive(irReadingTasks[i]);
   }
   
-  // Wait for 5 seconds for readings
-  delay(5000);
+  // Wait for 4 seconds for readings
+  delay(4000);
   
   // Return all servos to center position
   for (int i = 0; i < 6; i++) {
-    servos[i].write(90);
+    pwm.setPWM(i, 0, angleToPulse(SERVO_CENTER));
   }
   
   // Notify all ThingSpeak tasks to upload data simultaneously
@@ -362,12 +389,14 @@ void loop() {
   
   xSemaphoreTake(readingMutex, portMAX_DELAY);
   for (int i = 0; i < 6; i++) {
-    Serial.print("Sensor ");
-    Serial.print(i + 1);
+    Serial.print("Row ");
+    Serial.print((i / 2) + 1);
+    Serial.print(", ");
+    Serial.print(i % 2 == 0 ? "Spots A/B" : "Spots C/D");
     Serial.println(":");
-    Serial.print("  Spot 1: ");
+    Serial.print("  Spot at 135°: ");
     Serial.println(spotReadings[i][0] == 1 ? "OCCUPIED" : "EMPTY");
-    Serial.print("  Spot 2: ");
+    Serial.print("  Spot at 45°: ");
     Serial.println(spotReadings[i][1] == 1 ? "OCCUPIED" : "EMPTY");
   }
   xSemaphoreGive(readingMutex);
