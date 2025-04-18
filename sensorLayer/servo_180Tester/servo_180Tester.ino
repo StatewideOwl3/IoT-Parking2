@@ -15,31 +15,16 @@ void loop() {
   // Read IR sensor
   int irValue = digitalRead(irSensorPin);
   Serial.print("IR Sensor Reading at position ");
-  
-  myServo.write(0);
-  Serial.print("0°: ");
-  Serial.println(irValue == LOW ? "Object Detected" : "No Object");
-  delay(1000);
 
-  myServo.write(90);
-  Serial.print("90°: ");
+  myServo.write(45);
+  Serial.print("LEFT (45°): ");
   Serial.println(irValue == LOW ? "Object Detected" : "No Object");
   delay(4000);
 
-  myServo.write(180);
-  Serial.print("180°: ");
-  Serial.println(irValue == LOW ? "Object Detected" : "No Object");
-  delay(1000);
-
-  myServo.write(90);
-  Serial.print("90°: ");
+  myServo.write(135);
+  Serial.print("RIGHT (90°): ");
   Serial.println(irValue == LOW ? "Object Detected" : "No Object");
   delay(4000);
-
-  myServo.write(0);
-  Serial.print("0°: ");
-  Serial.println(irValue == LOW ? "Object Detected" : "No Object");
-  delay(1000);
   
   Serial.println("-------------------");
 }
