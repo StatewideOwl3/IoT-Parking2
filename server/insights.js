@@ -1,12 +1,50 @@
-// ThingSpeak Configuration
-const CHANNEL_ID = '2913587';
-const API_KEY = '5ZM4WBVZVHIBWB6B';
-const UPDATE_INTERVAL = 15000; // Update every 15 seconds
+// ThingSpeak Channel Configuration - All 6 channels
+const CHANNEL_INFO = [
+    { id: '2914193', apiKey: 'EF6D0DPOLTWPMMUD' }, // Channel 1 - Sector A spots 1-2
+    { id: '2914195', apiKey: '38S5DDJSWBATRB7O' }, // Channel 2 - Sector A spots 3-4
+    { id: '2914196', apiKey: 'T5QY7KFJPIZV9JKU' }, // Channel 3 - Sector B spots 1-2
+    { id: '2914197', apiKey: 'AYRC81YEPXIFJ4KN' }, // Channel 4 - Sector B spots 3-4
+    { id: '2914203', apiKey: 'ZR0R7T5PN6QR1T4E' }, // Channel 5 - Sector C spots 1-2
+    { id: '2914204', apiKey: '1GQOW8QBGG9Q3CYX' }  // Channel 6 - Sector C spots 3-4
+];
 
-let occupancyChartInstance = null;
+const UPDATE_INTERVAL = 60000; // 60 seconds
 let selectedTimeRange = 'hour';
+let occupancyChartInstance = null;
 
-document.addEventListener('DOMContentLoaded', () => {
+// Channel/field to sector/spot mapping
+const channelFieldToSectorSpotMap = [
+    { channel: 0, field: 1, sector: 0, spot: 0 }, // Channel 1, Field 1 -> Sector A, Spot 1
+    { channel: 0, field: 2, sector: 0, spot: 1 }, // Channel 1, Field 2 -> Sector A, Spot 2
+    { channel: 1, field: 1, sector: 0, spot: 2 }, // Channel 2, Field 1 -> Sector A, Spot 3
+    { channel: 1, field: 2, sector: 0, spot: 3 }, // Channel 2, Field 2 -> Sector A, Spot 4
+    { channel: 2, field: 1, sector: 1, spot: 0 }, // Channel 3, Field 1 -> Sector B, Spot 1
+    { channel: 2, field: 2, sector: 1, spot: 1 }, // Channel 3, Field 2 -> Sector B, Spot 2
+    { channel: 3, field: 1, sector: 1, spot: 2 }, // Channel 4, Field 1 -> Sector B, Spot 3
+    { channel: 3, field: 2, sector: 1, spot: 3 }, // Channel 4, Field 2 -> Sector B, Spot 4
+    { channel: 4, field: 1, sector: 2, spot: 0 }, // Channel 5, Field 1 -> Sector C, Spot 1
+    { channel: 4, field: 2, sector: 2, spot: 1 }, // Channel 5, Field 2 -> Sector C, Spot 2
+    { channel: 5, field: 1, sector: 2, spot: 2 }, // Channel 6, Field 1 -> Sector C, Spot 3
+    { channel: 5, field: 2, sector: 2, spot: 3 }  // Channel 6, Field 2 -> Sector C, Spot 4
+];
+
+$(document).ready(function() {
+    // Initialize with default time range
+    updateOccupancyChart();
+    
+    // Handle refresh button click
+    $('.premium-btn').click(function() {
+        updateOccupancyChart();
+    });
+
+    // Time range button click handlers
+    $('.time-option').click(function() {
+        $('.time-option').removeClass('active');
+        $(this).addClass('active');
+        selectedTimeRange = $(this).data('range');
+        updateOccupancyChart();
+    });
+
     // Update occupancy chart based on selected time range
     function updateOccupancyChart() {
         let results = 0;
@@ -46,60 +84,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
         }
 
-        $.getJSON(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${API_KEY}&results=${results}`, function(data) {
-            if (!data || !data.feeds || !data.feeds.length) return;
+        // Create promises for all channels
+        const channelPromises = CHANNEL_INFO.map(channel => 
+            $.getJSON(`https://api.thingspeak.com/channels/${channel.id}/feeds.json?api_key=${channel.apiKey}&results=${results}`)
+        );
 
+        // Wait for all channel data
+        Promise.all(channelPromises).then(channelsData => {
             const aggregatedData = {};
-            let totalOccupancy = 0;
-            let totalReadings = 0;
+            let totalCars = 0;
             let peakOccupancy = 0;
             let peakTime = '';
-            let totalCars = 0;
 
-            data.feeds.forEach(feed => {
-                const time = moment(feed.created_at);
-                const timeKey = time.format(dateFormat);
-                const occupancy = ((parseInt(feed.field1) || 0) + (parseInt(feed.field2) || 0)) / 2 * 100;
+            // Process data from all channels
+            channelsData.forEach((data, channelIndex) => {
+                if (!data || !data.feeds || !data.feeds.length) return;
 
-                if (!aggregatedData[timeKey]) {
-                    aggregatedData[timeKey] = { total: 0, count: 0, cars: 0 };
-                }
+                data.feeds.forEach(feed => {
+                    const time = moment(feed.created_at);
+                    const timeKey = time.format(dateFormat);
+                    
+                    if (!aggregatedData[timeKey]) {
+                        aggregatedData[timeKey] = { total: 0, count: 0, occupiedSpots: 0 };
+                    }
 
-                aggregatedData[timeKey].total += occupancy;
-                aggregatedData[timeKey].count++;
-
-                // Track car entries
-                if (feed.field1 === '1' && feed.field2 === '1') {
-                    aggregatedData[timeKey].cars++;
-                    totalCars++;
-                }
-
-                // Track peak occupancy
-                if (occupancy > peakOccupancy) {
-                    peakOccupancy = occupancy;
-                    peakTime = time.format('HH:mm');
-                }
-
-                totalOccupancy += occupancy;
-                totalReadings++;
+                    // Get spots data using the mapping
+                    const mappings = channelFieldToSectorSpotMap.filter(m => m.channel === channelIndex);
+                    mappings.forEach(mapping => {
+                        const fieldValue = parseInt(feed[`field${mapping.field}`]) === 1;
+                        if (fieldValue) {
+                            aggregatedData[timeKey].occupiedSpots++;
+                            totalCars++;
+                        }
+                    });
+                    
+                    // Each channel has 2 spots
+                    aggregatedData[timeKey].count += 2;
+                });
             });
 
-            // Update statistics
-            const avgOccupancy = totalReadings > 0 ? Math.round(totalOccupancy / totalReadings) : 0;
-            document.getElementById('totalCarsParked').textContent = totalCars;
-            document.getElementById('avgOccupancyRate').textContent = avgOccupancy + '%';
-            document.getElementById('peakHours').textContent = `${peakTime} (${Math.round(peakOccupancy)}%)`;
+            // Calculate percentages and find peak
+            Object.entries(aggregatedData).forEach(([timeKey, data]) => {
+                const occupancyPercent = (data.occupiedSpots / data.count) * 100;
+                data.occupancyRate = occupancyPercent;
+
+                if (occupancyPercent > peakOccupancy) {
+                    peakOccupancy = occupancyPercent;
+                    peakTime = timeKey;
+                }
+            });
+
+            // Update stats cards
+            $('#totalCarsParked').text(totalCars);
+            $('#avgOccupancyRate').text(Math.round(peakOccupancy) + '%');
+            $('#peakHours').text(`${peakTime} (${Math.round(peakOccupancy)}%)`);
 
             // Prepare chart data
             const labels = Object.keys(aggregatedData).sort();
-            const values = labels.map(key => Math.round(aggregatedData[key].total / aggregatedData[key].count));
+            const values = labels.map(key => Math.round(aggregatedData[key].occupancyRate));
 
-            // Destroy existing chart if it exists
+            // Update or create chart
             if (occupancyChartInstance) {
                 occupancyChartInstance.destroy();
             }
 
-            // Create new chart
             const ctx = document.getElementById('occupancyChart').getContext('2d');
             occupancyChartInstance = new Chart(ctx, {
                 type: 'line',
@@ -146,96 +194,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            updateActivityTable(data.feeds);
+            // Update activity table with merged data from all channels
+            updateActivityTable(channelsData);
         });
     }
 
-    // Update recent activity table
-    function updateActivityTable(feeds) {
+    function updateActivityTable(channelsData) {
+        const tableBody = $('#activityTable tbody');
+        tableBody.empty();
+
+        // Process the most recent activity from all channels
         const recentActivity = [];
-        let lastSpot1State = 0;
-        let lastSpot2State = 0;
-        let spot1StartTime = null;
-        let spot2StartTime = null;
 
-        // Process the feeds in reverse to get the most recent events first
-        feeds.reverse().forEach(feed => {
-            const spot1 = parseInt(feed.field1) || 0;
-            const spot2 = parseInt(feed.field2) || 0;
-            const time = moment(feed.created_at);
+        channelsData.forEach((data, channelIndex) => {
+            if (!data || !data.feeds || !data.feeds.length) return;
 
-            // Check Spot 1
-            if (spot1 === 1 && lastSpot1State === 0) {
-                spot1StartTime = time;
-                recentActivity.push({
-                    time: time,
-                    spot: 'Spot 1',
-                    event: 'Entry',
-                    duration: '-'
+            let lastStatus = {};
+            data.feeds.forEach(feed => {
+                const time = moment(feed.created_at);
+                const mappings = channelFieldToSectorSpotMap.filter(m => m.channel === channelIndex);
+                
+                mappings.forEach(mapping => {
+                    const fieldValue = parseInt(feed[`field${mapping.field}`]) === 1;
+                    const spotKey = `sector${mapping.sector}spot${mapping.spot}`;
+                    const spotName = `${String.fromCharCode(65 + mapping.sector)}${mapping.spot + 1}`;
+                    
+                    if (lastStatus[spotKey] !== undefined && lastStatus[spotKey] !== fieldValue) {
+                        recentActivity.push({
+                            time: time,
+                            spot: spotName,
+                            event: fieldValue ? 'Occupied' : 'Vacated',
+                            duration: ''
+                        });
+                    }
+                    lastStatus[spotKey] = fieldValue;
                 });
-            } else if (spot1 === 0 && lastSpot1State === 1 && spot1StartTime) {
-                const duration = moment.duration(time.diff(spot1StartTime));
-                recentActivity.push({
-                    time: time,
-                    spot: 'Spot 1',
-                    event: 'Exit',
-                    duration: `${Math.floor(duration.asHours())}h ${duration.minutes()}m`
-                });
-                spot1StartTime = null;
-            }
-
-            // Check Spot 2
-            if (spot2 === 1 && lastSpot2State === 0) {
-                spot2StartTime = time;
-                recentActivity.push({
-                    time: time,
-                    spot: 'Spot 2',
-                    event: 'Entry',
-                    duration: '-'
-                });
-            } else if (spot2 === 0 && lastSpot2State === 1 && spot2StartTime) {
-                const duration = moment.duration(time.diff(spot2StartTime));
-                recentActivity.push({
-                    time: time,
-                    spot: 'Spot 2',
-                    event: 'Exit',
-                    duration: `${Math.floor(duration.asHours())}h ${duration.minutes()}m`
-                });
-                spot2StartTime = null;
-            }
-
-            lastSpot1State = spot1;
-            lastSpot2State = spot2;
+            });
         });
 
-        // Update the activity table with the most recent 20 events
-        const tableBody = document.querySelector('#activityTable tbody');
-        tableBody.innerHTML = recentActivity.slice(0, 20).map(activity => `
-            <tr>
-                <td>${activity.time.format('MMM D, HH:mm')}</td>
-                <td>${activity.spot}</td>
-                <td>${activity.event}</td>
-                <td>${activity.duration}</td>
-            </tr>
-        `).join('');
+        // Sort by time and take the 10 most recent activities
+        recentActivity
+            .sort((a, b) => b.time - a.time)
+            .slice(0, 10)
+            .forEach(activity => {
+                const row = `<tr>
+                    <td>${activity.time.format('HH:mm:ss')}</td>
+                    <td>${activity.spot}</td>
+                    <td>${activity.event}</td>
+                    <td>${activity.duration}</td>
+                </tr>`;
+                tableBody.append(row);
+            });
     }
 
-    // Handle time range selection
-    document.querySelectorAll('.time-option').forEach(button => {
-        button.addEventListener('click', () => {
-            document.querySelectorAll('.time-option').forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            selectedTimeRange = button.dataset.range;
-            updateOccupancyChart();
-        });
-    });
-
-    // Initial update
-    updateOccupancyChart();
-
-    // Refresh periodically
+    // Set up auto-refresh
     setInterval(updateOccupancyChart, UPDATE_INTERVAL);
-
-    // Handle refresh button click
-    document.querySelector('.premium-btn').addEventListener('click', updateOccupancyChart);
 });

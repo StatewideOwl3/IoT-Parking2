@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>How It Works - Smart Parking System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="all_min.css" />
+    <style>
+        .explore-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px;
+            padding-top: 80px;
+        }
+
+        /* Override main-content styles since we removed sidebar */
+        .main-content {
+            margin-left: 0;
+            max-width: 100%;
+        }
+
+        .section {
+            margin-bottom: 60px;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease;
+        }
+
+        .section.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .section-title {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .section-icon {
+            width: 50px;
+            height: 50px;
+            background: var(--primary-light);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--primary-color);
+        }
+
+        .architecture-diagram {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            margin: 30px 0;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .layer {
+            flex: 1;
+            min-width: 250px;
+            padding: 20px;
+            text-align: center;
+            border-radius: 12px;
+            background: var(--gray-light);
+            position: relative;
+        }
+
+        .layer::after {
+            content: '→';
+            position: absolute;
+            right: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 24px;
+            color: var(--primary-color);
+        }
+
+        .layer:last-child::after {
+            display: none;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .feature-card {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(66, 112, 244, 0.15);
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--primary-light);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        .feature-title {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+
+        .feature-desc {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: var(--white);
+            color: var(--primary-color);
+            border: none;
+            border-radius: 30px;
+            padding: 12px 25px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(66, 112, 244, 0.15);
+        }
+    </style>
+</head>
+<body>
+<button onclick="window.location.href='index.html'" class="back-button">
+    <i class="fas fa-arrow-left"></i> Back to Dashboard
+</button>
+<div class="main-content">
+    <div class="explore-container">
+        <div class="section">
+            <div class="section-title">
+                <div class="section-icon"><i class="fas fa-info-circle"></i></div>
+                Project Overview
+            </div>
+            <p>The Smart Parking System is an IoT-based solution that provides real-time parking space monitoring and management. It uses a network of sensors, a central server, and a user-friendly dashboard to make parking effortless and efficient.</p>
+        </div>
+
+        <div class="section">
+            <div class="section-title">
+                <div class="section-icon"><i class="fas fa-layer-group"></i></div>
+                System Architecture
+            </div>
+            <div class="architecture-diagram">
+                <div class="layer">
+                    <h3><i class="fas fa-microchip"></i> Sensor Layer</h3>
+                    <p>IR sensors detect vehicle presence</p>
+                </div>
+                <div class="layer">
+                    <h3><i class="fas fa-server"></i> ThingSpeak</h3>
+                    <p>IoT platform for data processing</p>
+                </div>
+                <div class="layer">
+                    <h3><i class="fas fa-desktop"></i> Dashboard</h3>
+                    <p>Real-time monitoring interface</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">
+                <div class="section-icon"><i class="fas fa-star"></i></div>
+                Key Features
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon pulse">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3 class="feature-title">Real-time Monitoring</h3>
+                    <p class="feature-desc">Get instant updates on parking space availability with automatic 60-second refresh intervals.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3 class="feature-title">Data Analytics</h3>
+                    <p class="feature-desc">View occupancy trends, peak hours, and historical data through interactive charts.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <h3 class="feature-title">Smart Notifications</h3>
+                    <p class="feature-desc">Receive alerts about parking space status changes and system updates.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">
+                <div class="section-icon"><i class="fas fa-code"></i></div>
+                Technical Stack
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <h3 class="feature-title">Hardware</h3>
+                    <p class="feature-desc">IR sensors and Arduino-based controllers for reliable vehicle detection.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <h3 class="feature-title">Cloud Platform</h3>
+                    <p class="feature-desc">ThingSpeak IoT platform for data aggregation and processing.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-laptop-code"></i>
+                    </div>
+                    <h3 class="feature-title">Frontend</h3>
+                    <p class="feature-desc">Modern web dashboard built with HTML5, CSS3, and JavaScript.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Intersection Observer for scroll animations
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, {
+        threshold: 0.1
+    });
+
+    // Observe all sections
+    document.querySelectorAll('.section').forEach(section => {
+        observer.observe(section);
+    });
+</script>
+</body>
+</html>

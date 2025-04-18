@@ -1,10 +1,11 @@
 // ThingSpeak Channel Configuration - 6 channels, each with 2 fields
-// Primary channel data for reference
-const PRIMARY_CHANNEL_ID = '2913587';
-const PRIMARY_API_KEY = '5ZM4WBVZVHIBWB6B';
-const UPDATE_INTERVAL = 60000; // Update every 60 seconds (reduced frequency)
+const UPDATE_INTERVAL = 60000; // Update every 60 seconds
+let countdownValue = Math.floor(UPDATE_INTERVAL / 1000);
+let countdownTimer = null;
+let parkingChartInstance = null;
+let trafficChartInstance = null;
 
-// All 6 ThingSpeak channels (one for each IR sensor)
+// All 6 ThingSpeak channels (one for each IR sensor pair)
 const CHANNEL_INFO = [
     { id: '2914193', apiKey: 'EF6D0DPOLTWPMMUD' }, // Channel 1 - Sector A spots 1-2
     { id: '2914195', apiKey: '38S5DDJSWBATRB7O' }, // Channel 2 - Sector A spots 3-4
@@ -15,154 +16,67 @@ const CHANNEL_INFO = [
 ];
 
 // Parking state storage (3 rows x 4 columns)
-// Row A: Sectors A (spots 1-4) 
-// Row B: Sectors B (spots 1-4)
-// Row C: Sectors C (spots 1-4)
 let parkingStateArray = [
     [false, false, false, false], // Sector A (spots 1-4)
     [false, false, false, false], // Sector B (spots 1-4)
     [false, false, false, false]  // Sector C (spots 1-4)
 ];
 
-// Mapping from channel and field to sector and spot
-// This maps each field of each channel to the right spot in our UI
+// Channel/field to sector/spot mapping
 const channelFieldToSectorSpotMap = [
-    // Channel 1 (fields 1-2) -> Sector A (spots 1-2)
     { channel: 0, field: 1, sector: 0, spot: 0 }, // Channel 1, Field 1 -> Sector A, Spot 1
     { channel: 0, field: 2, sector: 0, spot: 1 }, // Channel 1, Field 2 -> Sector A, Spot 2
-    
-    // Channel 2 (fields 1-2) -> Sector A (spots 3-4)
     { channel: 1, field: 1, sector: 0, spot: 2 }, // Channel 2, Field 1 -> Sector A, Spot 3
     { channel: 1, field: 2, sector: 0, spot: 3 }, // Channel 2, Field 2 -> Sector A, Spot 4
-    
-    // Channel 3 (fields 1-2) -> Sector B (spots 1-2)
     { channel: 2, field: 1, sector: 1, spot: 0 }, // Channel 3, Field 1 -> Sector B, Spot 1
     { channel: 2, field: 2, sector: 1, spot: 1 }, // Channel 3, Field 2 -> Sector B, Spot 2
-    
-    // Channel 4 (fields 1-2) -> Sector B (spots 3-4)
     { channel: 3, field: 1, sector: 1, spot: 2 }, // Channel 4, Field 1 -> Sector B, Spot 3
     { channel: 3, field: 2, sector: 1, spot: 3 }, // Channel 4, Field 2 -> Sector B, Spot 4
-    
-    // Channel 5 (fields 1-2) -> Sector C (spots 1-2)
     { channel: 4, field: 1, sector: 2, spot: 0 }, // Channel 5, Field 1 -> Sector C, Spot 1
     { channel: 4, field: 2, sector: 2, spot: 1 }, // Channel 5, Field 2 -> Sector C, Spot 2
-    
-    // Channel 6 (fields 1-2) -> Sector C (spots 3-4)
     { channel: 5, field: 1, sector: 2, spot: 2 }, // Channel 6, Field 1 -> Sector C, Spot 3
     { channel: 5, field: 2, sector: 2, spot: 3 }  // Channel 6, Field 2 -> Sector C, Spot 4
 ];
 
-// Track when each parking spot was last updated
-let lastChangeTimes = {};
-
-// Countdown timer for ThingSpeak updates
-let countdownValue = Math.floor(UPDATE_INTERVAL / 1000); // Convert ms to seconds
-let countdownTimer = null;
-
-// Initialize the dashboard
-function initDashboard() {
-    // Initial data load
-    updateParkingStats();
-    updateTrafficChart();
-    
-    // Set up countdown timer (updates every second)
-    countdownTimer = setInterval(() => {
-        if (countdownValue > 0) {
-            countdownValue--;
-            updateCountdownDisplay();
-        }
-    }, 1000);
-    
-    // Initialize the countdown display
-    updateCountdownDisplay();
-    
-    // Set interval for periodic updates
-    setInterval(() => {
-        // Reset the countdown when we do an update
-        countdownValue = Math.floor(UPDATE_INTERVAL / 1000);
-        updateParkingStats();
-        updateTrafficChart();
-    }, UPDATE_INTERVAL);
+// Update the countdown display
+function updateCountdownDisplay() {
+    $('#next-update-countdown').text(countdownValue);
 }
 
 // Update parking statistics
 function updateParkingStats() {
-    console.log('Updating parking stats from ThingSpeak for all 6 channels...');
+    console.log('Updating parking stats from ThingSpeak...');
     
-    // Create a promise for each of the 6 channels
     const channelPromises = [];
     
-    // Loop through all 6 channels to fetch their data
+    // Fetch data from all 6 channels
     for (let channelIndex = 0; channelIndex < CHANNEL_INFO.length; channelIndex++) {
         const channelData = CHANNEL_INFO[channelIndex];
-        console.log(`Fetching data from ThingSpeak channel ${channelIndex + 1}:`, channelData.id);
+        console.log(`Fetching data from channel ${channelIndex + 1}:`, channelData.id);
         
-        // Create a promise for this channel
         const promise = $.ajax({
             url: `https://api.thingspeak.com/channels/${channelData.id}/feeds/last.json`,
             data: { api_key: channelData.apiKey },
             dataType: 'json',
             success: function(data) {
                 if (!data) {
-                    console.error(`No data received from ThingSpeak for channel ${channelIndex + 1}`);
+                    console.error(`No data received from channel ${channelIndex + 1}`);
                     return;
                 }
                 
-                console.log(`Received ThingSpeak data for channel ${channelIndex + 1}:`, data);
-                const timestamp = data.created_at;
-                const lastUpdateTimestamp = moment(timestamp);
+                const field1 = parseInt(data.field1) === 1;
+                const field2 = parseInt(data.field2) === 1;
                 
-                // Update ThingSpeak timestamp display
-                const formattedTime = lastUpdateTimestamp.format('MMM D, YYYY h:mm:ss A');
-                
-                // Each channel has 2 fields corresponding to 2 parking spots
-                const field1 = data.field1 !== undefined ? parseInt(data.field1) === 1 : false;
-                const field2 = data.field2 !== undefined ? parseInt(data.field2) === 1 : false;
-                
-                // Find the mapping for this channel's fields
                 const mappings = channelFieldToSectorSpotMap.filter(m => m.channel === channelIndex);
+                mappings.forEach(mapping => {
+                    const value = mapping.field === 1 ? field1 : field2;
+                    parkingStateArray[mapping.sector][mapping.spot] = value;
+                });
                 
-                if (mappings.length >= 2) {
-                    // Map field1 to the correct sector/spot
-                    const field1Mapping = mappings.find(m => m.field === 1);
-                    if (field1Mapping) {
-                        // Always update the timestamp to show the latest data point time
-                        // regardless of whether state changed
-                        parkingStateArray[field1Mapping.sector][field1Mapping.spot] = field1;
-                        lastChangeTimes[`${field1Mapping.sector}-${field1Mapping.spot}`] = timestamp;
-                        
-                        // Format and log for debugging
-                        const sectorLetter = String.fromCharCode(65 + field1Mapping.sector);
-                        const spotNumber = field1Mapping.spot + 1;
-                        const formattedTime = moment(timestamp).format('MMM D, YYYY h:mm:ss A');
-                        console.log(`Sector ${sectorLetter}${spotNumber}: ${field1 ? 'Occupied' : 'Free'} (Last data: ${formattedTime})`);
-                    }
-                    
-                    // Map field2 to the correct sector/spot
-                    const field2Mapping = mappings.find(m => m.field === 2);
-                    if (field2Mapping) {
-                        // Always update the timestamp to show the latest data point time
-                        // regardless of whether state changed
-                        parkingStateArray[field2Mapping.sector][field2Mapping.spot] = field2;
-                        lastChangeTimes[`${field2Mapping.sector}-${field2Mapping.spot}`] = timestamp;
-                        
-                        // Format and log for debugging
-                        const sectorLetter = String.fromCharCode(65 + field2Mapping.sector);
-                        const spotNumber = field2Mapping.spot + 1;
-                        const formattedTime = moment(timestamp).format('MMM D, YYYY h:mm:ss A');
-                        console.log(`Sector ${sectorLetter}${spotNumber}: ${field2 ? 'Occupied' : 'Free'} (Last data: ${formattedTime})`);
-                    }
-                }
-                
-                // Display the ThingSpeak update timestamp for this channel
-                $(`#channel-${channelIndex + 1}-timestamp`).text(formattedTime);
-                
-                // Update the latest timestamp for display
-                $('#thingspeak-timestamp').text(formattedTime);
                 $('#thingspeak-status').text('Connected').removeClass('status-inactive').addClass('status-active');
             },
             error: function(error) {
-                console.error(`Error fetching data from ThingSpeak for channel ${channelIndex + 1}:`, error);
+                console.error(`Error fetching from channel ${channelIndex + 1}:`, error);
                 $('#thingspeak-status').text('Error').removeClass('status-active').addClass('status-inactive');
             }
         });
@@ -171,491 +85,338 @@ function updateParkingStats() {
     }
     
     // After all channel data is fetched, update the UI
-    $.when.apply($, channelPromises).always(function() {
-        console.log('All channel requests completed');
-        
-        // Calculate total occupied spots
+    return $.when.apply($, channelPromises).then(function() {
         let totalOccupied = 0;
-        for (let i = 0; i < parkingStateArray.length; i++) {
-            for (let j = 0; j < parkingStateArray[i].length; j++) {
-                if (parkingStateArray[i][j]) totalOccupied++;
-            }
-        }
+        let totalSpots = 0;
         
-        // Calculate statistics
-        const totalSpots = 12; // Total of 12 parking spots (3 sectors × 4 spots)
-        const freeSpots = totalSpots - totalOccupied;
-        const capacityPercentage = Math.round((totalOccupied / totalSpots) * 100);
-        
-        // Update dashboard elements
-        $('#freeSpaces').text(freeSpots);
-        $('#occupiedSpaces').text(totalOccupied);
-        $('#capacityPercentage').text(`${capacityPercentage}%`);
-        $('#capacityStatus').text(capacityPercentage > 80 ? 'High' : capacityPercentage > 50 ? 'Moderate' : 'Low');
-        
-        // Update client-side timestamp
-        const clientTime = new Date();
-        $('#last-update-time').text(clientTime.toLocaleTimeString());
-        
-        // Update the countdown display
-        const countdownSeconds = 60; // Reset to 60 seconds
-        updateCountdown(countdownSeconds);
-        
-        // Calculate total parkings from historical data (less frequently)
-        // Only fetch this data once every 5 minutes to reduce API calls
-        const now = new Date();
-        const lastFetchTime = sessionStorage.getItem('lastHistoricalFetch');
-        const shouldFetchHistorical = !lastFetchTime || (now - new Date(lastFetchTime)) > 5 * 60 * 1000; // 5 minutes
-        
-        if (shouldFetchHistorical) {
-            // For historical data, we'll use the primary channel as the main reference
-            $.getJSON(`https://api.thingspeak.com/channels/${PRIMARY_CHANNEL_ID}/feeds.json?api_key=${PRIMARY_API_KEY}&results=1000`, function(historicalData) {
-                if (historicalData && historicalData.feeds) {
-                    let totalParkings = 0;
-                    let lastStates = Array(2).fill(0); // Only field1 and field2
-                    
-                    historicalData.feeds.forEach(feed => {
-                        // Check field1 and field2 for transitions
-                        for (let field = 1; field <= 2; field++) {
-                            const fieldName = `field${field}`;
-                            const currentState = parseInt(feed[fieldName]) || 0;
-                            
-                            // Count when a spot becomes occupied (0->1 transition)
-                            if (currentState === 1 && lastStates[field-1] === 0) {
-                                totalParkings++;
-                            }
-                            
-                            lastStates[field-1] = currentState;
-                        }
-                    });
-                    
-                    $('#totalCarsParked').text(totalParkings);
-                    $('#totalParkings').text(totalParkings);
-                    
-                    // Remember when we last fetched this data
-                    sessionStorage.setItem('lastHistoricalFetch', now.toISOString());
-                }
+        parkingStateArray.forEach(row => {
+            row.forEach(spot => {
+                if (spot) totalOccupied++;
+                totalSpots++;
             });
+        });
+        
+        const totalFree = totalSpots - totalOccupied;
+        const occupancyRate = (totalOccupied / totalSpots) * 100;
+        
+        // Update UI elements if they exist
+        if ($('#totalCarsParked').length) {
+            $('#totalCarsParked').text(totalOccupied);
+            $('#freeSpaces').text(totalFree);
+            $('#occupiedSpaces').text(totalOccupied);
+            $('#capacityStatus').text(`${totalOccupied}/${totalSpots}`);
+            $('#capacityPercentage').text(`${Math.round(occupancyRate)}%`);
         }
         
-        // Update the last refresh time (client-side)
+        // Store data in localStorage
+        localStorage.setItem('parkingState', JSON.stringify({
+            parkingStateArray,
+            lastUpdate: new Date().toISOString(),
+            stats: {
+                totalOccupied,
+                totalFree,
+                occupancyRate
+            }
+        }));
+        
+        // Update last refresh time
         const lastUpdateTime = moment().format('h:mm:ss A');
         $('#last-update-time').text(lastUpdateTime);
         
-        // Update countdown
         updateCountdownDisplay();
+        return { totalOccupied, totalFree, occupancyRate };
     });
-}
-
-// Store chart instances
-let trafficChartInstance = null;
-let parkingChartInstance = null;
-
-// Update the countdown display
-function updateCountdownDisplay() {
-    const countdownElement = document.getElementById('next-update-countdown');
-    if (countdownElement) {
-        countdownElement.textContent = countdownValue;
-    }
 }
 
 // Update traffic chart
 function updateTrafficChart() {
     // Get selected time range from buttons
-    const activeButton = document.querySelector('.time-option.active');
+    const activeButton = document.querySelector('.time-range-filter .time-option.active');
     let selectedRange = '24h';
-
     if (activeButton) {
         const buttonText = activeButton.textContent.trim().toLowerCase();
         if (buttonText.includes('week')) {
             selectedRange = '7d';
-        } else if (buttonText === 'today') {
-            selectedRange = '24h';
         } else if (buttonText.includes('hour')) {
             selectedRange = '1h';
         }
     }
+
     let results = 0;
-    
     switch(selectedRange) {
+        case '1h':
+            results = 60; // Last hour, minute by minute
+            break;
         case '24h':
-            results = 24;
+            results = 288; // Last 24 hours, 5-minute intervals
             break;
         case '7d':
-            results = 24 * 7;
-            break;
-        case '30d':
-            results = 24 * 30;
-            break;
-        default:
-            results = 24;
-    }
-
-    $.getJSON(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${API_KEY}&results=${results}`, function(data) {
-        if (data && data.feeds) {
-            const ctx = document.getElementById('trafficChart').getContext('2d');
-            let labels, values;
-
-            // Process data based on time range
-            if (selectedRange === '1h') {
-                // For last hour, show data points every 5 minutes
-                labels = data.feeds.map(feed => moment(feed.created_at).format('HH:mm'));
-                values = data.feeds.map(feed => ((parseInt(feed.field1) || 0) + (parseInt(feed.field2) || 0)) / 2 * 100);
-            } else if (selectedRange === '24h') {
-                // For 24 hours, group by hour
-                const hourlyData = {};
-                data.feeds.forEach(feed => {
-                    const hour = moment(feed.created_at).format('HH:00');
-                    if (!hourlyData[hour]) {
-                        hourlyData[hour] = { total: 0, count: 0 };
-                    }
-                    hourlyData[hour].total += (parseInt(feed.field1) || 0) + (parseInt(feed.field2) || 0);
-                    hourlyData[hour].count += 2; // 2 spots
-                });
-
-                labels = Object.keys(hourlyData).sort();
-                values = Object.values(hourlyData).map(data => (data.total / data.count) * 100);
-            } else if (selectedRange === '7d') {
-                // For week view, show day names
-                const dailyData = {};
-                data.feeds.forEach(feed => {
-                    const day = moment(feed.created_at).format('ddd');
-                    if (!dailyData[day]) {
-                        dailyData[day] = { total: 0, count: 0 };
-                    }
-                    dailyData[day].total += (parseInt(feed.field1) || 0) + (parseInt(feed.field2) || 0);
-                    dailyData[day].count += 2;
-                });
-
-                labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].filter(day => dailyData[day]);
-                values = labels.map(day => (dailyData[day].total / dailyData[day].count) * 100);
-            }
-
-            // Destroy previous chart instance if it exists
-            if (trafficChartInstance) {
-                trafficChartInstance.destroy();
-            }
-
-            // Create new chart instance
-            trafficChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Occupancy Rate',
-                        data: values,
-                        borderColor: '#4270F4',
-                        tension: 0.4,
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            ticks: {
-                                callback: value => value + '%',
-                                stepSize: 20
-                            },
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)',
-                                drawBorder: false
-                            },
-                            title: {
-                                display: true,
-                                text: 'Occupancy Rate'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            title: {
-                                display: true,
-                                text: 'Time'
-                            },
-                            ticks: {
-                                maxRotation: 45,
-                                minRotation: 45
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        }
-                    }
-                }
-            });
-        }
-    });
-
-    // Update recent traffic
-    $.getJSON(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${API_KEY}&results=10`, function(data) {
-        if (data && data.feeds) {
-            let lastSpot1 = null;
-            let lastSpot2 = null;
-            const changes = [];
-            
-            // Detect changes in spot status
-            data.feeds.forEach(feed => {
-                const spot1 = parseInt(feed.field1);
-                const spot2 = parseInt(feed.field2);
-                const time = feed.created_at;
-                
-                if (lastSpot1 !== null && spot1 !== lastSpot1) {
-                    changes.push({
-                        spot: 1,
-                        status: spot1 === 1 ? 'IN' : 'OUT',
-                        time: time
-                    });
-                }
-                
-                if (lastSpot2 !== null && spot2 !== lastSpot2) {
-                    changes.push({
-                        spot: 2,
-                        status: spot2 === 1 ? 'IN' : 'OUT',
-                        time: time
-                    });
-                }
-                
-                lastSpot1 = spot1;
-                lastSpot2 = spot2;
-            });
-            
-            // Sort changes by time (most recent first) and take top 5
-            const recentChanges = changes.sort((a, b) => 
-                new Date(b.time) - new Date(a.time)
-            ).slice(0, 5);
-            
-            const recentTrafficHtml = recentChanges.map(change => `
-                <div class="transaction-item">
-                    <div class="transaction-icon"><i class="fas fa-car-alt"></i></div>
-                    <div class="transaction-content">
-                        <div class="transaction-title">Spot ${change.spot}</div>
-                        <div class="transaction-time">
-                            <i class="far fa-clock"></i> ${moment(change.time).fromNow()}
-                        </div>
-                    </div>
-                    <div class="transaction-amount ${change.status === 'IN' ? 'positive' : 'negative'}">
-                        ${change.status}
-                    </div>
-                </div>
-            `).join('');
-            
-            $('#recentTraffic').html(recentTrafficHtml || '<div class="no-changes">No recent changes</div>');
-        }
-    });
-}
-
-// Create parking chart
-function createParkingChart() {
-    const ctx = document.getElementById('parking-chart').getContext('2d');
-    
-    // Destroy previous chart instance if it exists
-    if (parkingChartInstance) {
-        parkingChartInstance.destroy();
-    }
-
-    // Get selected time range from buttons
-    const activeButton = document.querySelector('.time-option.active');
-    let selectedRange = 'hour';
-    if (activeButton) {
-        const buttonText = activeButton.textContent.trim().toLowerCase();
-        if (buttonText.includes('week')) {
-            selectedRange = 'week';
-        } else if (buttonText.includes('today')) {
-            selectedRange = 'day';
-        }
-    }
-
-    // Determine number of results to fetch based on range
-    let results = 0;
-    switch(selectedRange) {
-        case 'hour':
-            results = 60; // Last hour, data every minute
-            break;
-        case 'day':
-            results = 288; // Last 24 hours, data every 5 minutes
-            break;
-        case 'week':
             results = 168; // Last 7 days, hourly data
             break;
     }
 
-    // Fetch data from ThingSpeak
-    $.getJSON(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${API_KEY}&results=${results}`, function(response) {
-        if (!response || !response.feeds || !response.feeds.length) return;
+    // Fetch data from all channels and process changes
+    const changes = [];
+    const promises = CHANNEL_INFO.map((channel, channelIndex) => {
+        return $.getJSON(`https://api.thingspeak.com/channels/${channel.id}/feeds.json?api_key=${channel.apiKey}&results=${results}`);
+    });
 
-        const feeds = response.feeds;
-        const now = moment();
-        const labels = [];
-        const data = [];
-        const timelineHtml = [];
-        const aggregatedData = {};
+    Promise.all(promises).then(channelsData => {
+        // Process each channel's data for changes
+        channelsData.forEach((data, channelIndex) => {
+            if (!data || !data.feeds || !data.feeds.length) return;
 
-        if (selectedRange === 'hour') {
-            // Group by 5-minute intervals for the last hour
-            feeds.forEach(feed => {
-                const time = moment(feed.created_at);
-                const interval = time.format('HH:mm');
-                if (!aggregatedData[interval]) {
-                    aggregatedData[interval] = { total: 0, count: 0 };
+            const feeds = data.feeds;
+            let lastSpot1 = null;
+            let lastSpot2 = null;
+
+            // Get sector and spots for this channel from mapping
+            const channelMappings = channelFieldToSectorSpotMap.filter(m => m.channel === channelIndex);
+
+            feeds.slice(-10).forEach(feed => {
+                const spot1 = parseInt(feed.field1);
+                const spot2 = parseInt(feed.field2);
+                const time = feed.created_at;
+
+                // Process spot 1
+                const spot1Mapping = channelMappings.find(m => m.field === 1);
+                if (spot1Mapping && lastSpot1 !== null && spot1 !== lastSpot1) {
+                    changes.push({
+                        spot: `${String.fromCharCode(65 + spot1Mapping.sector)}${spot1Mapping.spot + 1}`,
+                        status: spot1 === 1 ? 'IN' : 'OUT',
+                        time: time
+                    });
                 }
-                aggregatedData[interval].total += ((parseInt(feed.field1) || 0) + (parseInt(feed.field2) || 0)) / 2 * 100;
-                aggregatedData[interval].count++;
+
+                // Process spot 2
+                const spot2Mapping = channelMappings.find(m => m.field === 2);
+                if (spot2Mapping && lastSpot2 !== null && spot2 !== lastSpot2) {
+                    changes.push({
+                        spot: `${String.fromCharCode(65 + spot2Mapping.sector)}${spot2Mapping.spot + 1}`,
+                        status: spot2 === 1 ? 'IN' : 'OUT',
+                        time: time
+                    });
+                }
+
+                lastSpot1 = spot1;
+                lastSpot2 = spot2;
             });
+        });
 
-            // Get last 12 5-minute intervals
-            for (let i = 11; i >= 0; i--) {
-                const time = now.clone().subtract(i * 5, 'minutes');
-                const interval = time.format('HH:mm');
-                labels.push(interval);
-                const avg = aggregatedData[interval] ? 
-                    aggregatedData[interval].total / aggregatedData[interval].count : 0;
-                data.push(Math.round(avg));
+        // Sort changes by time (most recent first) and take top 5
+        const recentChanges = changes
+            .sort((a, b) => new Date(b.time) - new Date(a.time))
+            .slice(0, 5);
 
-                if (i % 2 === 0) {
-                    timelineHtml.push(`<div class="month">${interval}</div>`);
+        // Update recent traffic HTML
+        const recentTrafficHtml = recentChanges.map(change => `
+            <div class="transaction-item">
+                <div class="transaction-icon"><i class="fas fa-car-alt"></i></div>
+                <div class="transaction-content">
+                    <div class="transaction-title">Spot ${change.spot}</div>
+                    <div class="transaction-time">
+                        <i class="far fa-clock"></i> ${moment(change.time).fromNow()}
+                    </div>
+                </div>
+                <div class="transaction-amount ${change.status === 'IN' ? 'positive' : 'negative'}">
+                    ${change.status}
+                </div>
+            </div>
+        `).join('');
+
+        $('#recentTraffic').html(recentTrafficHtml || '<div class="no-changes">No recent changes</div>');
+
+        // Prepare data for the traffic chart based on time range
+        const timeLabels = [];
+        const trafficData = [];
+        
+        // Group data by time intervals
+        const trafficByInterval = new Map();
+        const oneHourAgo = moment().subtract(1, 'hour');
+        
+        channelsData.forEach(data => {
+            if (!data || !data.feeds || !data.feeds.length) return;
+            
+            data.feeds.forEach(feed => {
+                const timestamp = moment(feed.created_at);
+                // For 1h view, skip data points older than 1 hour
+                if (selectedRange === '1h' && timestamp.isBefore(oneHourAgo)) {
+                    return;
                 }
-            }
-        } else if (selectedRange === 'day') {
-            // Group by hour for the last 24 hours
-            feeds.forEach(feed => {
-                const time = moment(feed.created_at);
-                const hour = time.format('HH:00');
-                if (!aggregatedData[hour]) {
-                    aggregatedData[hour] = { total: 0, count: 0 };
+                
+                let timeKey;
+                switch(selectedRange) {
+                    case '1h':
+                        timeKey = timestamp.format('HH:mm');
+                        break;
+                    case '24h':
+                        timeKey = timestamp.format('HH:00');
+                        break;
+                    case '7d':
+                        timeKey = timestamp.format('ddd');
+                        break;
                 }
-                aggregatedData[hour].total += ((parseInt(feed.field1) || 0) + (parseInt(feed.field2) || 0)) / 2 * 100;
-                aggregatedData[hour].count++;
+                
+                if (!trafficByInterval.has(timeKey)) {
+                    trafficByInterval.set(timeKey, { total: 0, count: 0 });
+                }
+                
+                const interval = trafficByInterval.get(timeKey);
+                interval.total += (parseInt(feed.field1) || 0) + (parseInt(feed.field2) || 0);
+                interval.count += 2; // 2 spots per channel
             });
-
-            // Get last 12 2-hour intervals
-            for (let i = 11; i >= 0; i--) {
-                const time = now.clone().subtract(i * 2, 'hours');
-                const hour = time.format('HH:00');
-                labels.push(hour);
-                const avg = aggregatedData[hour] ? 
-                    aggregatedData[hour].total / aggregatedData[hour].count : 0;
-                data.push(Math.round(avg));
-
-                if (i % 2 === 0) {
-                    timelineHtml.push(`<div class="month">${hour}</div>`);
+        });
+        
+        // Convert map to sorted arrays
+        const sortedIntervals = Array.from(trafficByInterval.entries())
+            .sort((a, b) => {
+                if (selectedRange === '7d') {
+                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    return days.indexOf(a[0]) - days.indexOf(b[0]);
                 }
-            }
-        } else { // week
-            // Group by day
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            feeds.forEach(feed => {
-                const time = moment(feed.created_at);
-                const day = days[time.day()];
-                if (!aggregatedData[day]) {
-                    aggregatedData[day] = { total: 0, count: 0 };
-                }
-                aggregatedData[day].total += ((parseInt(feed.field1) || 0) + (parseInt(feed.field2) || 0)) / 2 * 100;
-                aggregatedData[day].count++;
+                return a[0].localeCompare(b[0]);
             });
+        
+        sortedIntervals.forEach(([timeKey, data]) => {
+            timeLabels.push(timeKey);
+            trafficData.push((data.total / data.count) * 100); // Convert to percentage
+        });
 
-            // Get data for last 7 days
-            const today = now.day();
-            for (let i = 6; i >= 0; i--) {
-                const dayIndex = (today - i + 7) % 7;
-                const day = days[dayIndex];
-                labels.push(day);
-                const avg = aggregatedData[day] ? 
-                    aggregatedData[day].total / aggregatedData[day].count : 0;
-                data.push(Math.round(avg));
-                timelineHtml.push(`<div class="month">${day}</div>`);
-            }
+        const ctx = document.getElementById('trafficChart').getContext('2d');
+        
+        // If there's an existing chart, destroy it
+        if (trafficChartInstance) {
+            trafficChartInstance.destroy();
         }
 
-            // Update timeline in HTML
-        document.getElementById('timeline').innerHTML = timelineHtml.join('');
-
-        // Create new chart instance
-        parkingChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Parking Occupancy',
-                data: data,
-                borderColor: '#4270F4',
-                backgroundColor: 'rgba(66, 112, 244, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: value => value + '%',
-                        stepSize: 20
+        // Create new chart
+        trafficChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Occupancy Rate',
+                    data: trafficData,
+                    borderColor: '#4270F4',
+                    backgroundColor: 'rgba(66, 112, 244, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: value => value + '%',
+                            stepSize: 20
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)',
+                            drawBorder: false
+                        }
                     },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)',
-                        drawBorder: false
-                    },
-                    title: {
-                        display: true,
-                        text: 'Occupancy Rate'
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    title: {
-                        display: true,
-                        text: 'Time'
-                    },
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        autoSkip: false,
-                        maxTicksLimit: 12,
-                        font: {
-                            size: 10
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45,
+                            autoSkip: true,
+                            maxTicksLimit: 12
                         }
                     }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 10,
+                        bottom: 10
+                    }
                 }
             }
-        }
-    });
+        });
+    }).catch(error => {
+        console.error('Error fetching traffic data:', error);
+        $('#recentTraffic').html('<div class="error-message">Error loading recent traffic data</div>');
     });
 }
 
-// Initialize when document is ready
-$(document).ready(function() {
-    initDashboard();
-    createParkingChart();
+// Initialize the dashboard
+function initDashboard() {
+    const restoredStats = restoreParkingState();
+    if (restoredStats) {
+        console.log('Restored parking state:', restoredStats);
+    }
     
-    // Handle refresh button click
-    $('.premium-btn').click(function() {
+    updateParkingStats();
+    updateTrafficChart();
+    
+    countdownTimer = setInterval(() => {
+        if (countdownValue > 0) {
+            countdownValue--;
+            updateCountdownDisplay();
+        }
+    }, 1000);
+    
+    updateCountdownDisplay();
+    
+    setInterval(() => {
+        countdownValue = Math.floor(UPDATE_INTERVAL / 1000);
         updateParkingStats();
         updateTrafficChart();
-        createParkingChart(); // Also update parking chart on refresh
-    });
+    }, UPDATE_INTERVAL);
+}
 
+// Event handlers when document is ready
+$(document).ready(function() {
+    initDashboard();
+    
+    // Handle refresh button click with immediate update
+    $('.premium-btn').click(function() {
+        countdownValue = Math.floor(UPDATE_INTERVAL / 1000);
+        updateCountdownDisplay();
+        updateParkingStats().then(() => {
+            updateTrafficChart();
+        });
+    });
+    
     // Handle time range button clicks
     $('.time-option').click(function() {
         $('.time-option').removeClass('active');
         $(this).addClass('active');
-        updateTrafficChart();
-        createParkingChart(); // Update parking chart when time range changes
+        
+        // Force immediate data refresh when time range changes
+        countdownValue = Math.floor(UPDATE_INTERVAL / 1000);
+        updateCountdownDisplay();
+        updateParkingStats().then(() => {
+            updateTrafficChart();
+        });
+    });
+
+    // Handle explore more button click
+    document.querySelector('.promo-btn').addEventListener('click', () => {
+        window.location.href = 'explore.html';
     });
 });
+
+// Restore parking state from localStorage if needed
+function restoreParkingState() {
+    const savedState = localStorage.getItem('parkingState');
+    if (savedState) {
+        const state = JSON.parse(savedState);
+        parkingStateArray = state.parkingStateArray;
+        return state.stats;
+    }
+    return null;
+}

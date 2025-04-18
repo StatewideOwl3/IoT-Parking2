@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Parking</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="all_min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="sidebar">
+    <div class="logo">
+        <svg width="180" height="40" viewBox="0 0 180 40">
+            <path d="M12,15 L30,15 L24,27 L12,27 Z" fill="#4270F4" />
+            <text x="38" y="27" fill="#262A39" font-size="20" font-weight="bold">ParkSafe</text>
+        </svg>
+    </div>
+    <div class="nav-menu">
+        <a href="main_page.html" class="nav-item active"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="parking_spaces.html" class="nav-item"><i class="fas fa-parking"></i><span>Parking Spaces</span></a>
+        <a href="charts.html" class="nav-item"><i class="fas fa-chart-line"></i><span>Charts</span></a>
+        <a href="insights.html" class="nav-item"><i class="fas fa-lightbulb"></i><span>Insights</span></a>
+        <a href="preferences.html" class="nav-item"><i class="fas fa-cog"></i><span>Settings</span></a>
+    </div>
+    <div class="premium-box">
+        <h3>Click to refresh statistics</h3>
+        <button class="premium-btn">Refresh</button>
+        <div class="last-update">
+            <div class="update-info">
+                <i class="fas fa-clock"></i>
+                <p>Last ThingSpeak update: <span id="last-update-time" class="highlight-time">--</span></p>
+            </div>
+            <div class="update-info">
+                <i class="fas fa-sync-alt"></i>
+                <p>Next update in: <span id="next-update-countdown" class="highlight-time">60</span> seconds</p>
+            </div>
+            <div class="sensor-status-container">
+                <div class="sensor-info">
+                    <i class="fas fa-wifi"></i>
+                    <p>ThingSpeak Status: <span id="thingspeak-status" class="status-active">Connected</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Main Content -->
+<div class="main-content">
+    <header class="dashboard-header">
+        <h1>Parking Dashboard</h1>
+        <p class="subtitle">Real-time parking space monitoring</p>
+    </header>
+    <!-- Header -->
+    <div class="header">
+        <div class="welcome-section">
+            <p class="greeting">Good day, Admin,</p>
+            <h1 class="welcome-title">Your Parking Overview</h1>
+        </div>
+        <div class="header-right">
+            <div class="notification-bell">
+                <i class="fas fa-bell"></i>
+                <div class="notification-indicator"></div>
+            </div>
+            <div class="user-profile">  
+                <img src="profile_pic.jpeg" alt="Admin" class="profile-pic" />
+            </div>
+            <div class="search-bar">
+                <form id="search-form" class="search2" method="get">
+                    <input type="search" id="query" name="q" placeholder="Search">
+                    <button type="submit"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- Dashboard Container -->
+    <div class="dashboard-container">
+        <!-- Main Dashboard Content -->
+        <div class="dashboard-main">
+            <!-- Current Capacity Section -->
+            <div class="capacity-section">
+                <div class="plan-card">
+                    <div class="plan-info">
+                        <div class="plan-title">Current Capacity</div>
+                        <div class="plan-status" id="capacityStatus">--</div>
+                    </div>
+                    <div class="plan-progress">
+                        <div class="plan-percentage" id="capacityPercentage">--%</div>
+                    </div>
+                </div>
+                <div class="stat-tiles">
+                    <div class="stat-tile">
+                        <div class="tile-icon"><i class="fas fa-car"></i></div>
+                        <p class="tile-title">Total Cars Today</p>
+                        <h2 class="tile-amount" id="totalCarsParked">--</h2>
+                    </div>
+                    <div class="stat-tile">
+                        <div class="tile-icon"><i class="fas fa-parking"></i></div>
+                        <p class="tile-title">Occupied Spaces</p>
+                        <h2 class="tile-amount negative" id="occupiedSpaces">--</h2>
+                    </div>
+                    <div class="stat-tile">
+                        <div class="tile-icon"><i class="fas fa-check-circle"></i></div>
+                        <p class="tile-title">Free Spaces</p>
+                        <h2 class="tile-amount positive" id="freeSpaces">--</h2>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Promo Card -->
+            <div class="promo-card">
+                <div class="promo-info">
+                    <h2 class="promo-title">Smart parking system</h2>
+                    <p class="promo-desc">This smart parking system allows us to park smartly and effort-lessly, while also getting the data in real-time.</p>
+                    <button class="promo-btn">Explore More</button>
+                </div>
+                <div class="smart-car">
+                    <div class="car-body">
+                        <div class="car-top"></div>
+                        <div class="car-body-main"></div>
+                        <div class="car-wheel front"></div>
+                        <div class="car-wheel back"></div>
+                    </div>
+                    <div class="car-shadow"></div>
+                </div>
+            </div>
+            <!-- Transaction & Transfer Sections -->
+            <div class="transaction-section">
+                <div class="transaction-card">
+                    <h3 class="section-title">Recent Traffic</h3>
+                    <div id="recentTraffic">
+                        <!-- Dynamic content will be inserted here by JavaScript -->
+                    </div>
+                </div>
+                <div class="transaction-card">
+                    <h3>Traffic Overview</h3>
+                    <div class="time-range-filter">
+                        <div class="time-filter">
+                            <button class="time-option active" data-range="hour">Last Hour</button>
+                            <button class="time-option" data-range="day">Today</button>
+                            <button class="time-option" data-range="week">This Week</button>
+                        </div>
+                    </div>
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Dashboard Sidebar -->
+        <div class="dashboard-sidebar">
+            <div class="savings-card">
+                <h3 class="savings-title">Parkings</h3>
+                <div class="savings-amount" id="totalParkings">--</div>
+                <div class="time-filter">
+                    <button class="time-option active" data-searchable="time">Last Hour</button>
+                    <button class="time-option" data-searchable="time">Today</button>
+                    <button class="time-option" data-searchable="time">This Week</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="parking-chart"></canvas>
+                </div>
+                <div class="timeline" id="timeline">
+                    <!-- Timeline will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="main_page.js"></script>
+<script src="search.js"></script>
+</body>
+</html>

@@ -77,8 +77,8 @@ function handleSearch() {
 
     // If query matches a page title/section, suggest navigation
     const pageMatches = {
-        'home': 'main_page.html',
-        'dashboard': 'main_page.html',
+        'home': 'index.html',
+        'dashboard': 'index.html',
         'parking': 'parking_spaces.html',
         'spaces': 'parking_spaces.html',
         'insights': 'insights.html',
