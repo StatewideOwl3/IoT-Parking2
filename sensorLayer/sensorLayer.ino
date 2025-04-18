@@ -9,7 +9,7 @@ const char* password = "DXBTURFD";
 
 // ====== ThingSpeak API Keys and Channels ======
 // Replace these with your actual API keys and channel IDs
-//THESE HAVE TO BE WRITE KEYS
+// THESE HAVE TO BE WRITE KEYS
 const char* apiKeys[6] = {
   "MH9PG5BKVZIYGW18", // Channel 1 API Key
   "FXNT93E2CGJZOXYZ",        // Channel 2 API Key
@@ -35,6 +35,27 @@ const int IR_SENSOR_PINS[6] = {15, 16, 17, 18, 19, 21};
 // Servo pins
 const int SERVO_PINS[6] = {13, 14, 25, 26, 27, 32};
 
+// Ultrasonic sensor pins for Road 1
+const int TRIG_PIN_ROAD1 = 22;
+const int ECHO_PIN_ROAD1 = 23;
+const int LED_PIN_ROAD1 = 2;
+
+// Ultrasonic sensor pins for Road 2
+const int TRIG_PIN_ROAD2 = 4;
+const int ECHO_PIN_ROAD2 = 5;
+const int LED_PIN_ROAD2 = 3;
+
+// Speed detection constants
+const float SENSOR_DISTANCE = 100.0;  // Distance between sensors in cm
+const float SPEED_LIMIT = 3.0;    // Speed limit in cm/s
+const int BLINK_COUNT = 3;        // Number of times to blink LED
+const int BLINK_DELAY = 200;      // Delay between blinks in ms
+
+// Add these constants at the top with other constants
+const int SERVO_MOVE_TIME = 500;     // Time to allow servo to reach position
+const int IR_SAMPLES = 20;           // Number of samples to average
+const int IR_SAMPLE_DELAY = 50;      // Delay between samples
+
 // Create servo objects
 Servo servos[6];
 
@@ -46,6 +67,7 @@ SemaphoreHandle_t readingMutex;  // For safe access to readings across tasks
 // Task handles for parallel operations
 TaskHandle_t irReadingTasks[6];
 TaskHandle_t thingSpeakTasks[6];
+TaskHandle_t speedMonitorTask;
 
 // ====== WiFi Setup ======
 void connectToWiFi() {
@@ -67,26 +89,22 @@ void irReadingTask(void* parameter) {
     // Wait for notification to start reading
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     
-    // For Spot 1 (servo at 0°)
-    int consecutiveDetections = 0;
-    unsigned long startTime = millis();
-    bool isOccupied = false;
+    // Allow servo to reach position
+    delay(SERVO_MOVE_TIME);
     
-    // Read for 5 seconds continuously
-    while (millis() - startTime < 5000) {
+    // For Spot 1 (servo at 0°)
+    int detectionCount = 0;
+    
+    // Take multiple samples
+    for(int i = 0; i < IR_SAMPLES; i++) {
       if (digitalRead(sensorPin) == LOW) {  // Object detected
-        consecutiveDetections++;
-      } else {
-        consecutiveDetections = 0;
+        detectionCount++;
       }
-      
-      // If we have consistently detected an object
-      if (consecutiveDetections > 10) {
-        isOccupied = true;
-      }
-      
-      delay(50);  // Small delay between readings
+      delay(IR_SAMPLE_DELAY);
     }
+    
+    // Calculate occupation based on threshold
+    bool isOccupied = (detectionCount > (IR_SAMPLES * 0.7)); // 70% threshold
     
     // Update the reading securely
     xSemaphoreTake(readingMutex, portMAX_DELAY);
@@ -97,26 +115,22 @@ void irReadingTask(void* parameter) {
     // Wait for next notification (for Spot 2)
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     
-    // For Spot 2 (servo at 180°)
-    consecutiveDetections = 0;
-    startTime = millis();
-    isOccupied = false;
+    // Allow servo to reach position
+    delay(SERVO_MOVE_TIME);
     
-    // Read for 5 seconds continuously
-    while (millis() - startTime < 5000) {
+    // For Spot 2 (servo at 180°)
+    detectionCount = 0;
+    
+    // Take multiple samples
+    for(int i = 0; i < IR_SAMPLES; i++) {
       if (digitalRead(sensorPin) == LOW) {  // Object detected
-        consecutiveDetections++;
-      } else {
-        consecutiveDetections = 0;
+        detectionCount++;
       }
-      
-      // If we have consistently detected an object
-      if (consecutiveDetections > 10) {
-        isOccupied = true;
-      }
-      
-      delay(50);  // Small delay between readings
+      delay(IR_SAMPLE_DELAY);
     }
+    
+    // Calculate occupation based on threshold
+    isOccupied = (detectionCount > (IR_SAMPLES * 0.7)); // 70% threshold
     
     // Update the reading securely
     xSemaphoreTake(readingMutex, portMAX_DELAY);
@@ -162,6 +176,65 @@ void thingSpeakTask(void* parameter) {
   }
 }
 
+// ====== Speed Monitoring Functions ======
+void monitorRoadSpeed(int trigPin, int echoPin, int ledPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  long duration = pulseIn(echoPin, HIGH);
+  float distance = duration * 0.034 / 2;
+  
+  if (distance < 400) {  // Object detected
+    unsigned long startTime = millis();
+    float prevDistance = distance;
+    
+    // Monitor for movement over a short period
+    delay(100);  // Wait a bit before second measurement
+    
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+    
+    duration = pulseIn(echoPin, HIGH);
+    float newDistance = duration * 0.034 / 2;
+    
+    // Calculate speed (cm/s)
+    float timeDiff = (millis() - startTime) / 1000.0;  // Convert to seconds
+    float speed = abs(newDistance - prevDistance) / timeDiff;
+    
+    if (speed > SPEED_LIMIT) {
+      // Blink warning LED
+      for (int i = 0; i < BLINK_COUNT; i++) {
+        digitalWrite(ledPin, HIGH);
+        delay(BLINK_DELAY);
+        digitalWrite(ledPin, LOW);
+        delay(BLINK_DELAY);
+      }
+      
+      Serial.print("Speed violation detected on road: ");
+      Serial.print(speed);
+      Serial.println(" cm/s");
+    }
+  }
+}
+
+void speedMonitorTask(void* parameter) {
+  while (true) {
+    // Monitor Road 1
+    monitorRoadSpeed(TRIG_PIN_ROAD1, ECHO_PIN_ROAD1, LED_PIN_ROAD1);
+    
+    // Monitor Road 2
+    monitorRoadSpeed(TRIG_PIN_ROAD2, ECHO_PIN_ROAD2, LED_PIN_ROAD2);
+    
+    delay(100);  // Small delay between readings
+  }
+}
+
 // ====== Setup ======
 void setup() {
   Serial.begin(115200);
@@ -170,6 +243,16 @@ void setup() {
   for (int i = 0; i < 6; i++) {
     pinMode(IR_SENSOR_PINS[i], INPUT);
   }
+  
+  // Initialize ultrasonic sensor pins
+  pinMode(TRIG_PIN_ROAD1, OUTPUT);
+  pinMode(ECHO_PIN_ROAD1, INPUT);
+  pinMode(TRIG_PIN_ROAD2, OUTPUT);
+  pinMode(ECHO_PIN_ROAD2, INPUT);
+  pinMode(LED_PIN_ROAD1, OUTPUT);
+  pinMode(LED_PIN_ROAD2, OUTPUT);
+  digitalWrite(LED_PIN_ROAD1, LOW);
+  digitalWrite(LED_PIN_ROAD2, LOW);
 
   // Initialize servo motors
   for (int i = 0; i < 6; i++) {
@@ -208,6 +291,17 @@ void setup() {
   }
   
   connectToWiFi();
+  
+  // Create speed monitor task
+  xTaskCreatePinnedToCore(
+    speedMonitorTask,     // Task function
+    "SpeedMonitorTask",  // Name
+    4000,                // Stack size
+    NULL,                // Parameter
+    1,                   // Priority
+    &speedMonitorTask,   // Task handle
+    0                    // Core (0)
+  );
   
   Serial.println("System initialized. Starting parking monitoring...");
 }

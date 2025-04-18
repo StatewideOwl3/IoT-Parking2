@@ -397,6 +397,7 @@ color: var(--primary-dark);
     color: var(--primary-color);
     font-size: 20px;
     transition: all 0.3s ease;
+    cursor: pointer;
 }
 .transfer-card:hover .card-icon {
     transform: scale(1.1);
