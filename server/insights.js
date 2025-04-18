@@ -50,37 +50,47 @@ $(document).ready(function() {
         let results = 0;
         let groupBy = '';
         let dateFormat = '';
-
+        
+        // Get the time range cutoff
+        const now = moment();
+        let startTime;
+        
         switch(selectedTimeRange) {
             case 'hour':
-                results = 60; // Last hour, minute by minute
+                results = 120; // Request more data points for better accuracy
                 groupBy = 'minute';
                 dateFormat = 'HH:mm';
+                startTime = moment().subtract(1, 'hour');
                 break;
             case 'day':
                 results = 288; // Last 24 hours, 5-minute intervals
                 groupBy = 'hour';
                 dateFormat = 'HH:00';
+                startTime = moment().subtract(1, 'day');
                 break;
             case 'week':
                 results = 168; // Last 7 days, hourly
                 groupBy = 'day';
                 dateFormat = 'ddd';
+                startTime = moment().subtract(1, 'week');
                 break;
             case 'month':
                 results = 720; // Last 30 days, hourly
                 groupBy = 'day';
                 dateFormat = 'MMM D';
+                startTime = moment().subtract(1, 'month');
                 break;
             case 'year':
                 results = 8760; // Last 365 days, daily
                 groupBy = 'month';
                 dateFormat = 'MMM YYYY';
+                startTime = moment().subtract(1, 'year');
                 break;
             case 'lifetime':
                 results = 8760; // All time, monthly
                 groupBy = 'month';
                 dateFormat = 'MMM YYYY';
+                startTime = moment().subtract(10, 'years'); // Arbitrary large range
                 break;
         }
 
@@ -92,7 +102,8 @@ $(document).ready(function() {
         // Wait for all channel data
         Promise.all(channelPromises).then(channelsData => {
             const aggregatedData = {};
-            let totalCars = 0;
+            let totalCarsInRange = 0;
+            let totalReadingsInRange = 0;
             let peakOccupancy = 0;
             let peakTime = '';
 
@@ -101,47 +112,63 @@ $(document).ready(function() {
                 if (!data || !data.feeds || !data.feeds.length) return;
 
                 data.feeds.forEach(feed => {
-                    const time = moment(feed.created_at);
-                    const timeKey = time.format(dateFormat);
+                    const feedTime = moment(feed.created_at);
+                    
+                    // Skip data points outside the selected time range
+                    if (feedTime.isBefore(startTime) || feedTime.isAfter(now)) {
+                        return;
+                    }
+
+                    const timeKey = feedTime.format(dateFormat);
                     
                     if (!aggregatedData[timeKey]) {
-                        aggregatedData[timeKey] = { total: 0, count: 0, occupiedSpots: 0 };
+                        aggregatedData[timeKey] = {
+                            occupiedSpots: 0,
+                            totalSpots: 0,
+                            timestamp: feedTime,
+                            rawTime: feed.created_at
+                        };
                     }
 
                     // Get spots data using the mapping
                     const mappings = channelFieldToSectorSpotMap.filter(m => m.channel === channelIndex);
                     mappings.forEach(mapping => {
                         const fieldValue = parseInt(feed[`field${mapping.field}`]) === 1;
+                        aggregatedData[timeKey].totalSpots++;
                         if (fieldValue) {
                             aggregatedData[timeKey].occupiedSpots++;
-                            totalCars++;
+                            totalCarsInRange++;
                         }
                     });
-                    
-                    // Each channel has 2 spots
-                    aggregatedData[timeKey].count += 2;
+                    totalReadingsInRange += 2; // Each channel has 2 spots
                 });
             });
 
             // Calculate percentages and find peak
             Object.entries(aggregatedData).forEach(([timeKey, data]) => {
-                const occupancyPercent = (data.occupiedSpots / data.count) * 100;
+                const occupancyPercent = (data.occupiedSpots / data.totalSpots) * 100;
                 data.occupancyRate = occupancyPercent;
-
+                
                 if (occupancyPercent > peakOccupancy) {
                     peakOccupancy = occupancyPercent;
                     peakTime = timeKey;
                 }
             });
 
-            // Update stats cards
-            $('#totalCarsParked').text(totalCars);
-            $('#avgOccupancyRate').text(Math.round(peakOccupancy) + '%');
+            // Calculate average occupancy for the selected time period
+            const avgOccupancy = totalReadingsInRange > 0 ? 
+                (totalCarsInRange / totalReadingsInRange) * 100 : 0;
+
+            // Update stats cards with time-range specific data
+            $('#totalCarsParked').text(totalCarsInRange);
+            $('#avgOccupancyRate').text(Math.round(avgOccupancy) + '%');
             $('#peakHours').text(`${peakTime} (${Math.round(peakOccupancy)}%)`);
 
-            // Prepare chart data
-            const labels = Object.keys(aggregatedData).sort();
-            const values = labels.map(key => Math.round(aggregatedData[key].occupancyRate));
+            // Prepare chart data - sort by actual timestamp
+            const sortedKeys = Object.keys(aggregatedData).sort((a, b) => {
+                return moment(aggregatedData[a].rawTime).diff(moment(aggregatedData[b].rawTime));
+            });
+            const values = sortedKeys.map(key => Math.round(aggregatedData[key].occupancyRate));
 
             // Update or create chart
             if (occupancyChartInstance) {
@@ -152,7 +179,7 @@ $(document).ready(function() {
             occupancyChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: sortedKeys,
                     datasets: [{
                         label: 'Occupancy Rate (%)',
                         data: values,
