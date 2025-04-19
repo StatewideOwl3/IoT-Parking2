@@ -26,5 +26,6 @@ void loop() {
   Serial.println(irValue == LOW ? "Object Detected" : "No Object");
   delay(4000);
   
+  
   Serial.println("-------------------");
 }

@@ -30,14 +30,18 @@ const int channelIDs[6] = {
 };
 
 // ====== Pin Definitions ======
+// I2C Pins
+const int I2C_SDA = 21;
+const int I2C_SCL = 22;
+
 // IR Sensor pins
 const int IR_SENSOR_PINS[6] = {15, 16, 17, 18, 19, 21};
 
-// Servo pins
-const int SERVO_PINS[6] = {13, 14, 25, 26, 27, 32};
+// Servo channel mapping on PCA9685 (channels 0-5)
+const uint8_t servoChannels[6] = {0, 1, 2, 3, 4, 5};
 
-// Ultrasonic sensor pins for Road 1
-const int TRIG_PIN_ROAD1 = 22;
+// Ultrasonic sensor pins for Road 1 (moved from GPIO22 to GPIO13)
+const int TRIG_PIN_ROAD1 = 13;
 const int ECHO_PIN_ROAD1 = 23;
 const int LED_PIN_ROAD1 = 2;
 
@@ -61,28 +65,22 @@ const int IR_SAMPLE_DELAY = 50;      // Delay between samples
 // Create servo driver object
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
-// Servo configuration
-#define SERVOMIN  125 // This is the 'minimum' pulse length count (out of 4096)
-#define SERVOMAX  575 // This is the 'maximum' pulse length count (out of 4096)
-#define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
+// Servo configuration for SG90 with PCA9685
+#define SERVOMIN  100  // Minimum pulse length count (0 degrees) - updated from 100
+#define SERVOMAX  530  // Maximum pulse length count (180 degrees) - updated from 530
+#define SERVO_FREQ 50  // Standard 50Hz servo frequency
 
-// Servo positions
+// Servo positions (in degrees)
 const int SERVO_CENTER = 90;      // Rest position
 const int SERVO_LEFT = 45;        // First spot position (90-45)
 const int SERVO_RIGHT = 135;      // Second spot position (90+45)
 
-// Servo to spot mapping
-// Servo 0 (Channel 0) -> Row 1, Spots A & B
-// Servo 1 (Channel 1) -> Row 1, Spots C & D
-// Servo 2 (Channel 2) -> Row 2, Spots A & B
-// Servo 3 (Channel 3) -> Row 2, Spots C & D
-// Servo 4 (Channel 4) -> Row 3, Spots A & B
-// Servo 5 (Channel 5) -> Row 3, Spots C & D
-
-// Function to convert angle to pulse length
+// Function to convert angle to pulse length for SG90
 int angleToPulse(int angle) {
-  int pulse = map(angle, 0, 180, SERVOMIN, SERVOMAX);
-  return pulse;
+  // Ensure angle is within bounds
+  angle = constrain(angle, 0, 180);
+  // Map angle to pulse length
+  return map(angle, 0, 180, SERVOMIN, SERVOMAX);
 }
 
 // Reading variables
@@ -93,7 +91,7 @@ SemaphoreHandle_t readingMutex;  // For safe access to readings across tasks
 // Task handles for parallel operations
 TaskHandle_t irReadingTasks[6];
 TaskHandle_t thingSpeakTasks[6];
-TaskHandle_t speedMonitorTask;
+TaskHandle_t speedMonitorTaskHandle;  // Changed from speedMonitorTask
 
 // ====== WiFi Setup ======
 void connectToWiFi() {
@@ -258,15 +256,58 @@ void speedMonitorTask(void* parameter) {
   }
 }
 
+// ====== I2C Scanning ======
+void scanI2C() {
+  byte error, address;
+  int nDevices = 0;
+  
+  Serial.println("Scanning for I2C devices...");
+  
+  for(address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+    
+    if (error == 0) {
+      Serial.print("I2C device found at address 0x");
+      if (address < 16) {
+        Serial.print("0");
+      }
+      Serial.println(address, HEX);
+      nDevices++;
+    }
+  }
+  
+  if (nDevices == 0) {
+    Serial.println("No I2C devices found!");
+  }
+}
+
 // ====== Setup ======
 void setup() {
   Serial.begin(115200);
+  Serial.println();  // Print empty line to clear any garbage
+  Serial.flush();    // Flush the buffer
+  delay(1000);       // Give Serial time to stabilize
   
-  // Initialize I2C and servo driver
-  Wire.begin();
-  pwm.begin();
+  Serial.println("\r\n=== Starting Smart Parking System ===\r\n");
+  
+  // Initialize I2C and servo driver with explicit pins
+  Wire.begin(I2C_SDA, I2C_SCL);
+  delay(1000); // Give I2C time to initialize
+  
+  // Scan for I2C devices
+  scanI2C();
+  
+  Serial.println("Initializing servo driver...");
+  if (!pwm.begin()) {
+    Serial.println("PCA9685 not found! Check wiring...");
+    while (1);
+  }
+  Serial.println("PCA9685 found successfully!");
+  
   pwm.setOscillatorFrequency(27000000);
   pwm.setPWMFreq(SERVO_FREQ);
+  Serial.println("PWM frequency set to 50Hz");
   
   // Initialize IR sensor pins
   for (int i = 0; i < 6; i++) {
@@ -285,7 +326,7 @@ void setup() {
 
   // Initialize all servos to center position
   for (int i = 0; i < 6; i++) {
-    pwm.setPWM(i, 0, angleToPulse(SERVO_CENTER));
+    pwm.setPWM(servoChannels[i], 0, angleToPulse(SERVO_CENTER));
     delay(200); // Small delay between initializing servos
   }
   
@@ -322,12 +363,12 @@ void setup() {
   // Create speed monitor task
   xTaskCreatePinnedToCore(
     speedMonitorTask,     // Task function
-    "SpeedMonitorTask",  // Name
-    4000,                // Stack size
-    NULL,                // Parameter
-    1,                   // Priority
-    &speedMonitorTask,   // Task handle
-    0                    // Core (0)
+    "SpeedMonitorTask",   // Name
+    4000,                 // Stack size
+    NULL,                 // Parameter
+    1,                    // Priority
+    &speedMonitorTaskHandle,   // Changed from &speedMonitorTask
+    0                     // Core (0)
   );
   
   Serial.println("System initialized. Starting parking monitoring...");
@@ -338,14 +379,14 @@ void loop() {
   // All servos at center position (90°) for 10 seconds
   Serial.println("=== ALL SERVOS AT CENTER POSITION (90°) ===");
   for (int i = 0; i < 6; i++) {
-    pwm.setPWM(i, 0, angleToPulse(SERVO_CENTER));
+    pwm.setPWM(servoChannels[i], 75, angleToPulse(SERVO_CENTER));
   }
   delay(10000); // 10 seconds at center
   
   // All servos at Spot 1 position (135°) for 4 seconds
-  Serial.println("=== ALL SERVOS AT POSITION 135° - SCANNING FIRST SPOTS ===");
+  Serial.println("=== ALL SERVOS AT POSITION 0° - SCANNING FIRST SPOTS ===");
   for (int i = 0; i < 6; i++) {
-    pwm.setPWM(i, 0, angleToPulse(SERVO_RIGHT));
+    pwm.setPWM(servoChannels[i],0 , angleToPulse(SERVO_RIGHT));
   }
   delay(100); // Short delay for servos to start moving
   
@@ -358,9 +399,9 @@ void loop() {
   delay(4000);
   
   // All servos at Spot 2 position (45°) for 4 seconds
-  Serial.println("=== ALL SERVOS AT POSITION 45° - SCANNING SECOND SPOTS ===");
+  Serial.println("=== ALL SERVOS AT POSITION 180° - SCANNING SECOND SPOTS ===");
   for (int i = 0; i < 6; i++) {
-    pwm.setPWM(i, 0, angleToPulse(SERVO_LEFT));
+    pwm.setPWM(servoChannels[i], 150, angleToPulse(SERVO_LEFT));
   }
   delay(100); // Short delay for servos to start moving
   
@@ -374,7 +415,7 @@ void loop() {
   
   // Return all servos to center position
   for (int i = 0; i < 6; i++) {
-    pwm.setPWM(i, 0, angleToPulse(SERVO_CENTER));
+    pwm.setPWM(servoChannels[i], 0, angleToPulse(SERVO_CENTER));
   }
   
   // Notify all ThingSpeak tasks to upload data simultaneously
