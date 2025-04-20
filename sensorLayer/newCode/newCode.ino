@@ -32,7 +32,7 @@ const uint8_t NUM_SERVOS = 6;
 const uint8_t servoChannels[NUM_SERVOS] = { 0, 1, 2, 3, 4, 5 };
 
 // IR sensor pins for each servo (one IR per servo)
-const int IR_PINS[NUM_SERVOS] = {15, 13, 17, 18, 19, 27};  // GPIO pins for IR sensors
+const int IR_PINS[NUM_SERVOS] = {15, 13, 4, 2, 19, 27};  // GPIO pins for IR sensors
 
 // Sampling parameters for reliable readings
 const int SAMPLES_PER_SPOT = 40;  // Number of samples to take during 4s window
