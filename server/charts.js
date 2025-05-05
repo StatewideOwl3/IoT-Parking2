@@ -12,12 +12,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Channel IDs and READ API keys for all 6 channels
     const channelInfo = [
-        { id: '2914193', readApiKey: 'EF6D0DPOLTWPMMUD' }, // Channel 1
-        { id: '2914195', readApiKey: '38S5DDJSWBATRB7O' }, // Channel 2
-        { id: '2914196', readApiKey: 'T5QY7KFJPIZV9JKU' }, // Channel 3
-        { id: '2914197', readApiKey: 'AYRC81YEPXIFJ4KN' }, // Channel 4
-        { id: '2914203', readApiKey: 'ZR0R7T5PN6QR1T4E' }, // Channel 5
-        { id: '2914204', readApiKey: '1GQOW8QBGG9Q3CYX' }  // Channel 6
+        { id: 'CHANNEL_1_ID', readApiKey: 'READ_API_KEY_1' }, // Channel 1
+        { id: 'CHANNEL_2_ID', readApiKey: 'READ_API_KEY_2' }, // Channel 2
+        { id: 'CHANNEL_3_ID', readApiKey: 'READ_API_KEY_3' }, // Channel 3
+        { id: 'CHANNEL_4_ID', readApiKey: 'READ_API_KEY_4' }, // Channel 4
+        { id: 'CHANNEL_5_ID', readApiKey: 'READ_API_KEY_5' }, // Channel 5
+        { id: 'CHANNEL_6_ID', readApiKey: 'READ_API_KEY_6' }  // Channel 6
     ];
 
     // Handle premium box refresh button click

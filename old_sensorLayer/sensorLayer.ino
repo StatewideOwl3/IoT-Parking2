@@ -5,19 +5,19 @@
 #include <WiFiClientSecure.h>
 
 // ====== Wi-Fi Credentials ======
-const char* ssid = "iPhone";
-const char* password = "DXBTURFD";
+const char* ssid = "WIFI_SSID";
+const char* password = "WIFI_PASSWORD";
 
 // ====== ThingSpeak API Keys and Channels ======
 // Replace these with your actual API keys and channel IDs
 // THESE HAVE TO BE WRITE KEYS
 const char* apiKeys[6] = {
-  "MH9PG5BKVZIYGW18", // Channel 1 API Key
-  "FXNT93E2CGJZOXYZ",        // Channel 2 API Key
-  "241WNVOWZCVDUNL0",        // Channel 3 API Key
-  "B2NKKTZBEG91U9PX",        // Channel 4 API Key
-  "EMAQGRWKUB4SOUCN",        // Channel 5 API Key
-  "8EAR1YJRSYWMGHBO"         // Channel 6 API Key
+  "API_KEY_1", // Channel 1 API Key
+  "API_KEY_2", // Channel 2 API Key
+  "API_KEY_3", // Channel 3 API Key
+  "API_KEY_4", // Channel 4 API Key
+  "API_KEY_5", // Channel 5 API Key
+  "API_KEY_6"  // Channel 6 API Key
 };
 
 const int channelIDs[6] = {
@@ -72,8 +72,8 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 
 // Servo positions (in degrees)
 const int SERVO_CENTER = 90;      // Rest position
-const int SERVO_LEFT = 45;        // First spot position (90-45)
-const int SERVO_RIGHT = 135;      // Second spot position (90+45)
+const int SERVO_LEFT = 0;        // First spot position (90-45)
+const int SERVO_RIGHT = 180;      // Second spot position (90+45)
 
 // Function to convert angle to pulse length for SG90
 int angleToPulse(int angle) {

@@ -1,11 +1,11 @@
 // ThingSpeak Channel Configuration - All 6 channels
 const CHANNEL_INFO = [
-    { id: '2914193', apiKey: 'EF6D0DPOLTWPMMUD' }, // Channel 1 - Sector A spots 1-2
-    { id: '2914195', apiKey: '38S5DDJSWBATRB7O' }, // Channel 2 - Sector A spots 3-4
-    { id: '2914196', apiKey: 'T5QY7KFJPIZV9JKU' }, // Channel 3 - Sector B spots 1-2
-    { id: '2914197', apiKey: 'AYRC81YEPXIFJ4KN' }, // Channel 4 - Sector B spots 3-4
-    { id: '2914203', apiKey: 'ZR0R7T5PN6QR1T4E' }, // Channel 5 - Sector C spots 1-2
-    { id: '2914204', apiKey: '1GQOW8QBGG9Q3CYX' }  // Channel 6 - Sector C spots 3-4
+    { id: 'CHANNEL_1_ID', apiKey: 'READ_API_KEY_1' }, // Channel 1 - Sector A spots 1-2
+    { id: 'CHANNEL_2_ID', apiKey: 'READ_API_KEY_2' }, // Channel 2 - Sector A spots 3-4
+    { id: 'CHANNEL_3_ID', apiKey: 'READ_API_KEY_3' }, // Channel 3 - Sector B spots 1-2
+    { id: 'CHANNEL_4_ID', apiKey: 'READ_API_KEY_4' }, // Channel 4 - Sector B spots 3-4
+    { id: 'CHANNEL_5_ID', apiKey: 'READ_API_KEY_5' }, // Channel 5 - Sector C spots 1-2
+    { id: 'CHANNEL_6_ID', apiKey: 'READ_API_KEY_6' }  // Channel 6 - Sector C spots 3-4
 ];
 
 const UPDATE_INTERVAL = 60000; // 60 seconds

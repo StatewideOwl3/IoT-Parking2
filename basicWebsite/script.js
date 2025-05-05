@@ -1,6 +1,6 @@
 // ThingSpeak Channel configuration
-const channelID = 2913587;
-const readAPIKey = '5ZM4WBVZVHIBWB6B'; // Using the same API key as in the sensor code
+const channelID = 'CHANNEL_ID';
+const readAPIKey = 'READ_API_KEY'; // Using a dummy API key
 const dataFields = { spot1: 1, spot2: 2 }; // field1 = spot1, field2 = spot2
 const refreshInterval = 1; // Check every second
 let parkingHistoryChart = null;

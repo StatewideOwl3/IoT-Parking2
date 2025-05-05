@@ -2,11 +2,11 @@
 #include <HTTPClient.h>
 
 // Replace these with your actual values
-const char* ssid = "my_wifi";
-const char* password = "pwd";
+const char* ssid = "WIFI_SSID";
+const char* password = "WIFI_PASSWORD";
 
-const char* apiKey = "5ZM4WBVZVHIBWB6B";
-const int channelID = 2913587; // e.g. 1234567
+const char* apiKey = "API_KEY"; 
+const int channelID = "CHANNEL_ID"; // e.g. 1234567
 
 #define IR1 15
 #define IR2 16

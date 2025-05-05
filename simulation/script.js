@@ -3,14 +3,13 @@ const THINGSPEAK_UPDATE_INTERVAL = 60000; // Update ThingSpeak once per minute
 
 // Each IR sensor has its own ThingSpeak channel with 2 fields
 // IMPORTANT: You need to use the WRITE API key for updating ThingSpeak
-// 5ZM4WBVZVHIBWB6B appears to be a READ key, not a WRITE key
 const CHANNEL_INFO = [
-    { id: '2914193', apiKey: 'MH9PG5BKVZIYGW18' }, // Channel 1 - Sector A spots 1-2
-    { id: '2914195', apiKey: 'FXNT93E2CGJZOXYZ' }, // Channel 2 - Sector A spots 3-4
-    { id: '2914196', apiKey: '241WNVOWZCVDUNL0' }, // Channel 3 - Sector B spots 1-2
-    { id: '2914197', apiKey: 'B2NKKTZBEG91U9PX' }, // Channel 4 - Sector B spots 3-4
-    { id: '2914203', apiKey: 'EMAQGRWKUB4SOUCN' }, // Channel 5 - Sector C spots 1-2
-    { id: '2914204', apiKey: '8EAR1YJRSYWMGHBO' }  // Channel 6 - Sector C spots 3-4
+    { id: 'CHANNEL_1_ID', apiKey: 'WRITE_API_KEY_1' }, // Channel 1 - Sector A spots 1-2
+    { id: 'CHANNEL_2_ID', apiKey: 'WRITE_API_KEY_2' }, // Channel 2 - Sector A spots 3-4
+    { id: 'CHANNEL_3_ID', apiKey: 'WRITE_API_KEY_3' }, // Channel 3 - Sector B spots 1-2
+    { id: 'CHANNEL_4_ID', apiKey: 'WRITE_API_KEY_4' }, // Channel 4 - Sector B spots 3-4
+    { id: 'CHANNEL_5_ID', apiKey: 'WRITE_API_KEY_5' }, // Channel 5 - Sector C spots 1-2
+    { id: 'CHANNEL_6_ID', apiKey: 'WRITE_API_KEY_6' }  // Channel 6 - Sector C spots 3-4
 ];
 
 // Mapping from channel and field to sector and spot

@@ -4,8 +4,8 @@
 #include <Adafruit_PWMServoDriver.h>
 
 // ====== Wi-Fi Credentials ======
-const char* ssid = "iPhone";
-const char* password = "DXBTURFD";
+const char* ssid = "WIFI_SSID";
+const char* password = "WIFI_PASSWORD";
 
 // ====== ThingSpeak Configuration ======
 // Channel mapping:
@@ -16,12 +16,12 @@ const char* password = "DXBTURFD";
 // Channel 5 (IR on Servo 5) -> C1, C2
 // Channel 6 (IR on Servo 6) -> C3, C4
 const char* apiKeys[6] = {
-  "MH9PG5BKVZIYGW18", // Channel 1 - Servo 1 IR (A1,A2)
-  "FXNT93E2CGJZOXYZ", // Channel 2 - Servo 2 IR (A3,A4)
-  "241WNVOWZCVDUNL0", // Channel 3 - Servo 3 IR (B1,B2)
-  "B2NKKTZBEG91U9PX", // Channel 4 - Servo 4 IR (B3,B4)
-  "EMAQGRWKUB4SOUCN", // Channel 5 - Servo 5 IR (C1,C2)
-  "8EAR1YJRSYWMGHBO"  // Channel 6 - Servo 6 IR (C3,C4)
+  "API_KEY_1", // Channel 1 - Servo 1 IR (A1,A2)
+  "API_KEY_2", // Channel 2 - Servo 2 IR (A3,A4)
+  "API_KEY_3", // Channel 3 - Servo 3 IR (B1,B2)
+  "API_KEY_4", // Channel 4 - Servo 4 IR (B3,B4)
+  "API_KEY_5", // Channel 5 - Servo 5 IR (C1,C2)
+  "API_KEY_6"  // Channel 6 - Servo 6 IR (C3,C4)
 };
 
 // PCA9685 driver (default I²C address 0x40)
@@ -32,7 +32,7 @@ const uint8_t NUM_SERVOS = 6;
 const uint8_t servoChannels[NUM_SERVOS] = { 0, 1, 2, 3, 4, 5 };
 
 // IR sensor pins for each servo (one IR per servo)
-const int IR_PINS[NUM_SERVOS] = {15, 13, 4, 2, 19, 27};  // GPIO pins for IR sensors
+const int IR_PINS[NUM_SERVOS] = {15, 13, 4, 2, 5, 18};  // GPIO pins for IR sensors
 
 // Sampling parameters for reliable readings
 const int SAMPLES_PER_SPOT = 40;  // Number of samples to take during 4s window
